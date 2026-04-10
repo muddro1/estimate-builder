@@ -75,6 +75,20 @@ public class EstimateController : BasePluginController
 
     private record AttributeSelection(int MappingId, string[] Values);
 
+    private async Task<decimal> GetItemPriceAsync(Nop.Core.Domain.Catalog.Product product, EstimateListItem item)
+    {
+        var price = product.Price;
+        if (!string.IsNullOrEmpty(item.AttributesXml))
+        {
+            var attrValues = await _productAttributeParser.ParseProductAttributeValuesAsync(item.AttributesXml);
+            foreach (var av in attrValues)
+                price += av.PriceAdjustmentUsePercentage
+                    ? product.Price * av.PriceAdjustment / 100m
+                    : av.PriceAdjustment;
+        }
+        return price;
+    }
+
     [HttpGet]
     public async Task<IActionResult> Index()
     {
@@ -441,7 +455,7 @@ public class EstimateController : BasePluginController
             var product = await _productService.GetProductByIdAsync(item.ProductId);
             if (product == null) continue;
 
-            var price = product.Price;
+            var price = await GetItemPriceAsync(product, item);
             var total = price * item.Quantity;
             subTotal += total;
 
@@ -571,7 +585,7 @@ public class EstimateController : BasePluginController
             var product = await _productService.GetProductByIdAsync(item.ProductId);
             if (product == null) continue;
 
-            var price = product.Price;
+            var price = await GetItemPriceAsync(product, item);
             var total = price * item.Quantity;
             subTotal += total;
             var rowBg = altRow ? altBg : white;
@@ -666,16 +680,7 @@ public class EstimateController : BasePluginController
             var product = await _productService.GetProductByIdAsync(item.ProductId);
             if (product == null) continue;
 
-            // Base price + attribute price adjustments
-            var price = product.Price;
-            if (!string.IsNullOrEmpty(item.AttributesXml))
-            {
-                var attrValues = await _productAttributeParser.ParseProductAttributeValuesAsync(item.AttributesXml);
-                foreach (var av in attrValues)
-                    price += av.PriceAdjustmentUsePercentage
-                        ? product.Price * av.PriceAdjustment / 100m
-                        : av.PriceAdjustment;
-            }
+            var price = await GetItemPriceAsync(product, item);
 
             var total = price * item.Quantity;
             subTotal += total;
