@@ -1,0 +1,140 @@
+@model Nop.Plugin.Misc.EstimateBuilder.Models.EstimateItemsModel
+
+@{
+    Layout = "_ColumnsOne";
+    NopHtml.AddTitleParts("Estimate Items");
+    NopHtml.AppendPageCssClassParts("html-account-page");
+}
+
+<div class="page account-page estimate-items-page">
+    <div class="page-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #3a7bbf; padding-bottom:8px; margin-bottom:16px;">
+        <h1 style="margin:0;">Estimate Items</h1>
+        <div>
+            <a href="@Url.Action("Create","Estimate")" class="button-1" style="background:#3a7bbf; color:#fff; padding:8px 16px; text-decoration:none; border-radius:3px; margin-right:8px;">
+                &#43; Add Estimate
+            </a>
+            <a href="@Url.Action("Index","Estimate")" class="button-2" style="background:#888; color:#fff; padding:8px 16px; text-decoration:none; border-radius:3px;">
+                &#171;&#171; Back To List
+            </a>
+        </div>
+    </div>
+
+    <div class="page-body">
+        <form asp-action="UpdateItems" asp-controller="Estimate" method="post">
+            <input type="hidden" asp-for="EstimateListId" />
+
+            <div style="display:flex; gap:40px; margin-bottom:16px;">
+                <div style="flex:1;">
+                    <label style="font-weight:bold;">Estimate Name:</label><br />
+                    <input asp-for="EstimateName" style="width:100%; padding:6px; border:1px solid #ccc; background:#fff; color:#333; font-size:14px;" />
+                </div>
+                <div style="flex:2;">
+                    <label style="font-weight:bold;">Description:</label><br />
+                    <textarea asp-for="Description" rows="3" style="width:100%; padding:6px; border:1px solid #ccc; background:#fff; color:#333; font-size:14px;"></textarea>
+                </div>
+            </div>
+
+            <div style="border-bottom:2px solid #3a7bbf; margin-bottom:16px;"></div>
+            <div style="text-align:center; margin-bottom:16px;">
+                <button type="submit" class="button-1" style="background:#3a7bbf; color:#fff; padding:8px 20px; border:none; cursor:pointer; border-radius:3px;">
+                    &#10003; Update
+                </button>
+            </div>
+
+            @if (!Model.Items.Any())
+            {
+                <p>Your Estimate List Is Empty!</p>
+            }
+            else
+            {
+                <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+                    <thead>
+                        <tr style="background:#f2f2f2;">
+                            <th style="padding:10px; border:1px solid #ddd; text-align:left;">Remove</th>
+                            <th style="padding:10px; border:1px solid #ddd; text-align:left;">SKU</th>
+                            <th style="padding:10px; border:1px solid #ddd; text-align:left;">Image</th>
+                            <th style="padding:10px; border:1px solid #ddd; text-align:left;">Product(s)</th>
+                            <th style="padding:10px; border:1px solid #ddd; text-align:right;">Price</th>
+                            <th style="padding:10px; border:1px solid #ddd; text-align:center;">Qty.</th>
+                            <th style="padding:10px; border:1px solid #ddd; text-align:right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Items.Count; i++)
+                        {
+                            <tr>
+                                <input type="hidden" name="Items[@i].Id" value="@Model.Items[i].Id" />
+                                <input type="hidden" name="Items[@i].ProductId" value="@Model.Items[i].ProductId" />
+                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:center;">
+                                    <input type="checkbox" name="Items[@i].Remove" value="true" />
+                                </td>
+                                <td style="padding:8px 10px; border:1px solid #ddd;">@Model.Items[i].Sku</td>
+                                <td style="padding:8px 10px; border:1px solid #ddd;">
+                                    @if (!string.IsNullOrEmpty(Model.Items[i].ImageUrl))
+                                    {
+                                        <img src="@Model.Items[i].ImageUrl" alt="@Model.Items[i].ProductName" style="max-width:75px;" />
+                                    }
+                                </td>
+                                <td style="padding:8px 10px; border:1px solid #ddd; font-weight:bold;">
+                                    <a href="@Model.Items[i].ProductUrl" style="color:#3a7bbf; text-decoration:none;">@Model.Items[i].ProductName</a>
+                                </td>
+                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:right;">@Model.Items[i].PriceFormatted</td>
+                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:center;">
+                                    <input type="number" name="Items[@i].Quantity" value="@Model.Items[i].Quantity" min="1" style="width:60px; text-align:center; border:1px solid #ccc; padding:4px; background:#fff; color:#333; font-size:14px;" />
+                                </td>
+                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:right;">@Model.Items[i].TotalFormatted</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6" style="padding:8px 10px; border:1px solid #ddd; text-align:right; font-weight:bold;">Sub Total</td>
+                            <td style="padding:8px 10px; border:1px solid #ddd; text-align:right; font-weight:bold;">@Model.SubTotalFormatted</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:16px;">
+                    <button type="button" onclick="estimateAddToCart()" style="background:#4a3d8f; color:#fff; padding:10px 16px; border:none; cursor:pointer; border-radius:3px;">
+                        &#128722; Add To Cart
+                    </button>
+
+                    <button type="submit" style="background:#3a7bbf; color:#fff; padding:10px 16px; border:none; cursor:pointer; border-radius:3px;">
+                        &#10003; Update Estimate Items
+                    </button>
+
+                    <button type="button" onclick="estimateDeleteList()" style="background:#c0392b; color:#fff; padding:10px 16px; border:none; cursor:pointer; border-radius:3px;">
+                        &#128465; Delete Estimate List
+                    </button>
+
+                    <a href="@Url.Action("ExportToExcel","Estimate", new { id = Model.EstimateListId })"
+                       style="background:#1e7e34; color:#fff; padding:10px 16px; text-decoration:none; border-radius:3px; display:inline-flex; align-items:center;">
+                        &#128196; Export To Excel
+                    </a>
+
+                    <a href="@Url.Action("ExportToPdf","Estimate", new { id = Model.EstimateListId })"
+                       style="background:#155724; color:#fff; padding:10px 16px; text-decoration:none; border-radius:3px; display:inline-flex; align-items:center;">
+                        &#128196; Export To PDF
+                    </a>
+                </div>
+            }
+        </form>
+
+        <form id="estimate-addtocart-form" action="@Url.Action("AddToCart","Estimate", new { id = Model.EstimateListId })" method="post" style="display:none;">
+            @Html.AntiForgeryToken()
+        </form>
+        <form id="estimate-deletelist-form" action="@Url.Action("DeleteEstimateList","Estimate", new { id = Model.EstimateListId })" method="post" style="display:none;">
+            @Html.AntiForgeryToken()
+        </form>
+
+        <script>
+            function estimateAddToCart() {
+                document.getElementById('estimate-addtocart-form').submit();
+            }
+            function estimateDeleteList() {
+                if (confirm('Delete this estimate list?'))
+                    document.getElementById('estimate-deletelist-form').submit();
+            }
+        </script>
+    </div>
+</div>

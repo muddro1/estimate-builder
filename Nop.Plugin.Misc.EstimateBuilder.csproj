@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Nop.Plugin.Misc.EstimateBuilder</AssemblyName>
+    <RootNamespace>Nop.Plugin.Misc.EstimateBuilder</RootNamespace>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <OutputPath>../output</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Nop.Core">
+      <HintPath>../refs/Nop.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Nop.Data">
+      <HintPath>../refs/Nop.Data.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Nop.Services">
+      <HintPath>../refs/Nop.Services.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Nop.Web.Framework">
+      <HintPath>../refs/Nop.Web.Framework.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Nop.Web">
+      <HintPath>../refs/Nop.Web.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="FluentMigrator">
+      <HintPath>../refs/FluentMigrator.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="FluentMigrator.Abstractions">
+      <HintPath>../refs/FluentMigrator.Abstractions.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="FluentMigrator.Runner.Core">
+      <HintPath>../refs/FluentMigrator.Runner.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="linq2db">
+      <HintPath>../refs/linq2db.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ClosedXML">
+      <HintPath>../refs/ClosedXML.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="iTextSharp.LGPLv2.Core">
+      <HintPath>../refs/iTextSharp.LGPLv2.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

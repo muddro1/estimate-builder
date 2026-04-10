@@ -1,0 +1,128 @@
+@model Nop.Plugin.Misc.EstimateBuilder.Models.AddToEstimateModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@{ var token = Antiforgery.GetAndStoreTokens(HttpContextAccessor.HttpContext!).RequestToken; }
+
+<div class="add-to-estimate" style="margin-top:10px;">
+    <h3 style="font-size:14px; font-weight:bold; margin-bottom:6px;">Add To Estimate</h3>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="estimate-select-@(Model.ProductId)"
+                style="padding:6px 10px; border:1px solid #ccc; min-width:220px; color:#333; font-size:14px;">
+            @foreach (var estimate in Model.Estimates)
+            {
+                <option value="@estimate.Id">@estimate.Name</option>
+            }
+            <option value="0">+ Add to New Estimate</option>
+        </select>
+        <button type="button" onclick="addToEstimate_@(Model.ProductId)()"
+                style="background:#3a7bbf; color:#fff; padding:6px 14px; border:none; cursor:pointer; border-radius:3px; font-size:14px;">
+            Add
+        </button>
+    </div>
+</div>
+
+@*-- New Estimate Modal --*@
+<div id="new-estimate-modal-@(Model.ProductId)" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:10000;">
+    <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);"
+         onclick="closeNewEstimateModal_@(Model.ProductId)()"></div>
+    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; padding:30px; border-radius:6px; width:360px; max-width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+        <h3 style="margin:0 0 16px; font-size:16px; color:#333;">New Estimate</h3>
+        <label style="display:block; margin-bottom:4px; font-size:13px; color:#555;">Estimate Name <span style="color:red;">*</span></label>
+        <input type="text" id="new-estimate-name-@(Model.ProductId)" placeholder="Enter estimate name"
+               style="width:100%; padding:8px; border:1px solid #ccc; margin-bottom:12px; font-size:14px; color:#333; box-sizing:border-box;" />
+        <label style="display:block; margin-bottom:4px; font-size:13px; color:#555;">Description</label>
+        <input type="text" id="new-estimate-desc-@(Model.ProductId)" placeholder="Optional"
+               style="width:100%; padding:8px; border:1px solid #ccc; margin-bottom:16px; font-size:14px; color:#333; box-sizing:border-box;" />
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button type="button" onclick="closeNewEstimateModal_@(Model.ProductId)()"
+                    style="padding:8px 16px; border:1px solid #ccc; background:#fff; cursor:pointer; border-radius:3px; font-size:14px;">
+                Cancel
+            </button>
+            <button type="button" onclick="submitNewEstimate_@(Model.ProductId)()"
+                    style="padding:8px 16px; background:#3a7bbf; color:#fff; border:none; cursor:pointer; border-radius:3px; font-size:14px;">
+                Create &amp; Add
+            </button>
+        </div>
+    </div>
+</div>
+
+@*-- Result popup --*@
+<div id="estimate-msg-@(Model.ProductId)" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; border:1px solid #ccc; padding:30px 40px; z-index:10001; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.2); border-radius:4px; max-width:400px; width:90%;">
+    <button onclick="closeEstimateMsg_@(Model.ProductId)()" style="position:absolute;top:8px;right:12px;background:none;border:none;font-size:18px;cursor:pointer;">&#x2715;</button>
+    <p id="estimate-msg-text-@(Model.ProductId)" style="margin:0; font-size:15px; color:#333;"></p>
+</div>
+<div id="estimate-result-overlay-@(Model.ProductId)" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000;"
+     onclick="closeEstimateMsg_@(Model.ProductId)()"></div>
+
+<script>
+    function closeNewEstimateModal_@(Model.ProductId)() {
+        document.getElementById('new-estimate-modal-@(Model.ProductId)').style.display = 'none';
+        var sel = document.getElementById('estimate-select-@(Model.ProductId)');
+        var firstOpt = sel.options[0];
+        sel.value = firstOpt ? firstOpt.value : '0';
+    }
+
+    function closeEstimateMsg_@(Model.ProductId)() {
+        document.getElementById('estimate-msg-@(Model.ProductId)').style.display = 'none';
+        document.getElementById('estimate-result-overlay-@(Model.ProductId)').style.display = 'none';
+    }
+
+    function showResult_@(Model.ProductId)(message) {
+        document.getElementById('estimate-msg-text-@(Model.ProductId)').textContent = message;
+        document.getElementById('estimate-msg-@(Model.ProductId)').style.display = 'block';
+        document.getElementById('estimate-result-overlay-@(Model.ProductId)').style.display = 'block';
+    }
+
+    function doAddToEstimate_@(Model.ProductId)(estimateListId, newName, newDesc) {
+        var productId = @(Model.ProductId);
+        var qty = document.getElementById('product_enteredQuantity_' + productId);
+        var quantity = qty ? (parseInt(qty.value) || 1) : 1;
+
+        var body = 'productId=' + productId + '&estimateListId=' + estimateListId + '&quantity=' + quantity;
+        if (estimateListId == '0') {
+            body += '&newEstimateName=' + encodeURIComponent(newName) + '&newEstimateDescription=' + encodeURIComponent(newDesc);
+        }
+
+        fetch('@Url.Action("AddToEstimate","Estimate")', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': '@token'
+            },
+            body: body
+        })
+        .then(r => r.json())
+        .then(data => {
+            showResult_@(Model.ProductId)(data.message);
+            if (data.success && estimateListId == '0' && data.estimateId) {
+                var sel = document.getElementById('estimate-select-@(Model.ProductId)');
+                var option = document.createElement('option');
+                option.value = data.estimateId;
+                option.textContent = newName;
+                sel.insertBefore(option, sel.querySelector('option[value="0"]'));
+                sel.value = data.estimateId;
+            }
+        });
+    }
+
+    function addToEstimate_@(Model.ProductId)() {
+        var sel = document.getElementById('estimate-select-@(Model.ProductId)');
+        var estimateListId = sel.value;
+        if (estimateListId == '0') {
+            document.getElementById('new-estimate-modal-@(Model.ProductId)').style.display = 'block';
+        } else {
+            doAddToEstimate_@(Model.ProductId)(estimateListId, '', '');
+        }
+    }
+
+    function submitNewEstimate_@(Model.ProductId)() {
+        var name = document.getElementById('new-estimate-name-@(Model.ProductId)').value.trim();
+        if (!name) {
+            document.getElementById('new-estimate-name-@(Model.ProductId)').focus();
+            return;
+        }
+        var desc = document.getElementById('new-estimate-desc-@(Model.ProductId)').value.trim();
+        document.getElementById('new-estimate-modal-@(Model.ProductId)').style.display = 'none';
+        doAddToEstimate_@(Model.ProductId)('0', name, desc);
+    }
+</script>

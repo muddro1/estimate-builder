@@ -1,0 +1,14 @@
+{
+  "Group": "Misc",
+  "FriendlyName": "Estimate Builder",
+  "SupportedVersions": [ "4.90" ],
+  "Author": "Custom",
+  "DisplayOrder": 1,
+  "FileName": "Nop.Plugin.Misc.EstimateBuilder.dll",
+  "Description": "Allows customers to create product estimate lists",
+  "LimitedToStores": [],
+  "LimitedToCustomerRoles": [],
+  "DependsOnSystemNames": [],
+  "SystemName": "Misc.EstimateBuilder",
+  "Version": "1.0.0"
+}

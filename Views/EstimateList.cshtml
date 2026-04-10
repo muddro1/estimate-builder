@@ -1,0 +1,61 @@
+@model Nop.Plugin.Misc.EstimateBuilder.Models.EstimateListsModel
+
+@{
+    Layout = "_ColumnsOne";
+    NopHtml.AddTitleParts("My Estimate List");
+    NopHtml.AppendPageCssClassParts("html-account-page");
+}
+
+<div class="page account-page estimate-list-page">
+    <div class="page-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #3a7bbf; padding-bottom:8px; margin-bottom:16px;">
+        <h1 style="margin:0;">My Estimate List</h1>
+        <a href="@Url.Action("Create","Estimate")" class="button-1" style="background:#3a7bbf; color:#fff; padding:8px 16px; text-decoration:none; border-radius:3px;">
+            &#43; Add Estimate
+        </a>
+    </div>
+
+    <div class="page-body">
+        <table class="data-table" style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:10px 12px; background:#f2f2f2; border:1px solid #ddd;">Estimate Id</th>
+                    <th style="text-align:left; padding:10px 12px; background:#f2f2f2; border:1px solid #ddd;">Estimate Name</th>
+                    <th style="text-align:left; padding:10px 12px; background:#f2f2f2; border:1px solid #ddd;">Description</th>
+                    <th style="text-align:left; padding:10px 12px; background:#f2f2f2; border:1px solid #ddd;">Created On</th>
+                    <th style="text-align:left; padding:10px 12px; background:#f2f2f2; border:1px solid #ddd;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Estimates.Any())
+                {
+                    <tr>
+                        <td colspan="5" style="padding:10px 12px; border:1px solid #ddd; color:#c00;">No Estimates Are Available.</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var estimate in Model.Estimates)
+                    {
+                        <tr>
+                            <td style="padding:8px 12px; border:1px solid #ddd;">@estimate.Id</td>
+                            <td style="padding:8px 12px; border:1px solid #ddd;">
+                                <a href="@Url.Action("Details","Estimate", new { id = estimate.Id })">@estimate.Name</a>
+                            </td>
+                            <td style="padding:8px 12px; border:1px solid #ddd;">@estimate.Description</td>
+                            <td style="padding:8px 12px; border:1px solid #ddd;">@estimate.CreatedOn</td>
+                            <td style="padding:8px 12px; border:1px solid #ddd;">
+                                <a href="@Url.Action("Edit","Estimate", new { id = estimate.Id })" title="Edit" style="margin-right:6px;">&#9998;</a>
+                                <form asp-action="Copy" asp-controller="Estimate" asp-route-id="@estimate.Id" method="post" style="display:inline;" onsubmit="return confirm('Copy this estimate?')">
+                                    <button type="submit" title="Copy" style="background:none;border:none;cursor:pointer;padding:0;margin-right:6px;">&#128203;</button>
+                                </form>
+                                <form asp-action="Delete" asp-controller="Estimate" asp-route-id="@estimate.Id" method="post" style="display:inline;" onsubmit="return confirm('Delete this estimate?')">
+                                    <button type="submit" title="Delete" style="background:none;border:none;cursor:pointer;padding:0;color:#c00;">&#128465;</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

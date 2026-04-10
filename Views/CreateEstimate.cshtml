@@ -1,0 +1,53 @@
+@model Nop.Plugin.Misc.EstimateBuilder.Models.EstimateListModel
+
+@{
+    Layout = "_ColumnsOne";
+    var isEdit = Model.Id > 0;
+    NopHtml.AddTitleParts(isEdit ? "Edit Estimate" : "New Estimate");
+    NopHtml.AppendPageCssClassParts("html-account-page");
+}
+
+<div class="page account-page estimate-create-page">
+    <div class="page-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #3a7bbf; padding-bottom:8px; margin-bottom:16px;">
+        <h1 style="margin:0;">@(isEdit ? "Edit Estimate" : "New Estimate")</h1>
+        <a href="@Url.Action("Index","Estimate")" class="button-2" style="background:#888; color:#fff; padding:8px 16px; text-decoration:none; border-radius:3px;">
+            &#171;&#171; Back To List
+        </a>
+    </div>
+
+    <div class="page-body">
+        <div style="background:#666; color:#fff; padding:10px 16px; border-radius:3px 3px 0 0; font-weight:bold;">
+            @(isEdit ? "Edit Estimate" : "Add Estimate")
+        </div>
+        <div style="border:1px solid #ddd; padding:20px; border-radius:0 0 3px 3px;">
+            <form asp-action="@(isEdit ? "Edit" : "Create")" asp-controller="Estimate" method="post">
+                @if (isEdit)
+                {
+                    <input type="hidden" asp-for="Id" />
+                }
+                <div asp-validation-summary="ModelOnly" class="message-error"></div>
+
+                <div style="display:flex; margin-bottom:16px; align-items:center;">
+                    <label style="width:200px; font-weight:bold;">Estimate Name: <span style="color:red;">*</span></label>
+                    <div style="flex:1; max-width:600px;">
+                        <input asp-for="Name" style="width:100%; padding:6px; border:1px solid #ccc; background:#fff; color:#333; font-size:14px;" />
+                        <span asp-validation-for="Name" class="field-validation-error"></span>
+                    </div>
+                </div>
+
+                <div style="display:flex; margin-bottom:20px; align-items:flex-start;">
+                    <label style="width:200px; font-weight:bold; padding-top:6px;">Description:</label>
+                    <div style="flex:1; max-width:600px;">
+                        <textarea asp-for="Description" rows="5" style="width:100%; padding:6px; border:1px solid #ccc; background:#fff; color:#333; font-size:14px;"></textarea>
+                    </div>
+                </div>
+
+                <div style="text-align:center;">
+                    <button type="submit" class="button-1" style="background:#555; color:#fff; padding:8px 24px; border:none; cursor:pointer; text-transform:uppercase; font-weight:bold;">
+                        SAVE
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
