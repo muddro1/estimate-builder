@@ -35,6 +35,35 @@
             </div>
 
             <div style="border-bottom:2px solid #3a7bbf; margin-bottom:16px;"></div>
+
+            @*-- Add Product --*@
+            <div style="background:#f7f9fc; border:1px solid #dde3ed; border-radius:4px; padding:14px 16px; margin-bottom:16px;">
+                <h4 style="margin:0 0 10px; font-size:14px; font-weight:bold; color:#333;">Add Product</h4>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <select id="add-category-select" onchange="loadProductsForEstimate()"
+                            style="padding:6px 10px; border:1px solid #ccc; min-width:220px; color:#333; font-size:14px; background:#fff;">
+                        <option value="">-- Select Category --</option>
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    </select>
+                    <select id="add-product-select" disabled onchange="loadAttributesForProduct()"
+                            style="padding:6px 10px; border:1px solid #ccc; min-width:240px; color:#333; font-size:14px; background:#fff;">
+                        <option value="">-- Select Product --</option>
+                    </select>
+                    <input type="number" id="add-product-qty" value="1" min="1"
+                           style="width:60px; padding:6px; border:1px solid #ccc; text-align:center; font-size:14px; color:#333; background:#fff;" />
+                    <button type="button" onclick="addProductFromDetail()"
+                            style="background:#3a7bbf; color:#fff; padding:6px 16px; border:none; cursor:pointer; border-radius:3px; font-size:14px;">
+                        + Add
+                    </button>
+                </div>
+                <div id="add-attr-panel" style="display:none; margin-top:12px; border-top:1px solid #dde3ed; padding-top:10px;"></div>
+                <p id="add-product-msg" style="margin:8px 0 0; font-size:13px; color:#333; display:none;"></p>
+            </div>
+
+            <div style="border-bottom:2px solid #3a7bbf; margin-bottom:16px;"></div>
             <div style="text-align:center; margin-bottom:16px;">
                 <button type="submit" class="button-1" style="background:#3a7bbf; color:#fff; padding:8px 20px; border:none; cursor:pointer; border-radius:3px;">
                     &#10003; Update
@@ -77,6 +106,10 @@
                                 </td>
                                 <td style="padding:8px 10px; border:1px solid #ddd; font-weight:bold;">
                                     <a href="@Model.Items[i].ProductUrl" style="color:#3a7bbf; text-decoration:none;">@Model.Items[i].ProductName</a>
+                                    @if (!string.IsNullOrEmpty(Model.Items[i].AttributesFormatted))
+                                    {
+                                        <div style="font-weight:normal; font-size:12px; color:#666; margin-top:3px;">@Model.Items[i].AttributesFormatted</div>
+                                    }
                                 </td>
                                 <td style="padding:8px 10px; border:1px solid #ddd; text-align:right;">@Model.Items[i].PriceFormatted</td>
                                 <td style="padding:8px 10px; border:1px solid #ddd; text-align:center;">
@@ -134,6 +167,133 @@
             function estimateDeleteList() {
                 if (confirm('Delete this estimate list?'))
                     document.getElementById('estimate-deletelist-form').submit();
+            }
+
+            function loadProductsForEstimate() {
+                var catId = document.getElementById('add-category-select').value;
+                var prodSel = document.getElementById('add-product-select');
+                prodSel.innerHTML = '<option value="">-- Loading... --</option>';
+                prodSel.disabled = true;
+                document.getElementById('add-attr-panel').style.display = 'none';
+                document.getElementById('add-attr-panel').innerHTML = '';
+                if (!catId) {
+                    prodSel.innerHTML = '<option value="">-- Select Product --</option>';
+                    return;
+                }
+                fetch('@Url.Action("GetProductsByCategory", "Estimate")?categoryId=' + catId)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        prodSel.innerHTML = '<option value="">-- Select Product --</option>';
+                        data.forEach(function(p) {
+                            var opt = document.createElement('option');
+                            opt.value = p.id;
+                            opt.textContent = p.name;
+                            prodSel.appendChild(opt);
+                        });
+                        prodSel.disabled = false;
+                    });
+            }
+
+            function loadAttributesForProduct() {
+                var productId = document.getElementById('add-product-select').value;
+                var panel = document.getElementById('add-attr-panel');
+                panel.innerHTML = '';
+                panel.style.display = 'none';
+                if (!productId) return;
+                fetch('@Url.Action("GetProductAttributes", "Estimate")?productId=' + productId)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (!data.hasAttributes) return;
+                        var html = '<strong style="font-size:13px;">Configure Options:</strong><div style="margin-top:8px; display:flex; flex-direction:column; gap:10px;">';
+                        data.attributes.forEach(function(attr) {
+                            html += '<div>';
+                            html += '<label style="font-size:13px; font-weight:bold; color:#333;">' + attr.name + (attr.isRequired ? ' <span style="color:red">*</span>' : '') + '</label><br/>';
+                            var ct = attr.controlType;
+                            if (ct === 1) { // DropdownList
+                                html += '<select data-attr-mapping="' + attr.mappingId + '" style="padding:5px; border:1px solid #ccc; font-size:13px; color:#333; background:#fff; margin-top:3px;">';
+                                if (!attr.isRequired) html += '<option value="">-- None --</option>';
+                                attr.values.forEach(function(v) {
+                                    html += '<option value="' + v.id + '"' + (v.isPreSelected ? ' selected' : '') + '>' + v.name + '</option>';
+                                });
+                                html += '</select>';
+                            } else if (ct === 2 || ct === 40) { // RadioList / ColorSquares
+                                attr.values.forEach(function(v) {
+                                    var swatch = (ct === 40 && v.colorSquaresRgb) ? '<span style="display:inline-block;width:14px;height:14px;background:' + v.colorSquaresRgb + ';border:1px solid #999;margin-right:4px;vertical-align:middle;border-radius:2px;"></span>' : '';
+                                    html += '<label style="margin-right:12px; font-size:13px;"><input type="radio" name="attr-' + attr.mappingId + '" data-attr-mapping="' + attr.mappingId + '" value="' + v.id + '"' + (v.isPreSelected ? ' checked' : '') + ' style="margin-right:4px;"> ' + swatch + v.name + '</label>';
+                                });
+                            } else if (ct === 3) { // Checkboxes
+                                attr.values.forEach(function(v) {
+                                    html += '<label style="margin-right:12px; font-size:13px;"><input type="checkbox" data-attr-mapping="' + attr.mappingId + '" value="' + v.id + '"' + (v.isPreSelected ? ' checked' : '') + ' style="margin-right:4px;"> ' + v.name + '</label>';
+                                });
+                            } else if (ct === 10) { // Multiline
+                                html += '<textarea data-attr-mapping="' + attr.mappingId + '" rows="2" style="width:300px; padding:5px; border:1px solid #ccc; font-size:13px; color:#333; margin-top:3px;">' + attr.defaultValue + '</textarea>';
+                            } else { // TextBox and others
+                                html += '<input type="text" data-attr-mapping="' + attr.mappingId + '" value="' + attr.defaultValue + '" style="padding:5px; border:1px solid #ccc; font-size:13px; color:#333; width:220px; margin-top:3px;" />';
+                            }
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                        panel.innerHTML = html;
+                        panel.style.display = 'block';
+                    });
+            }
+
+            function collectAttributes() {
+                var panel = document.getElementById('add-attr-panel');
+                if (panel.style.display === 'none') return null;
+                var selections = {};
+                panel.querySelectorAll('[data-attr-mapping]').forEach(function(el) {
+                    var mid = el.getAttribute('data-attr-mapping');
+                    if (!selections[mid]) selections[mid] = [];
+                    if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+                        if (el.value) selections[mid].push(el.value);
+                    } else if (el.type === 'radio' && el.checked) {
+                        selections[mid].push(el.value);
+                    } else if (el.type === 'checkbox' && el.checked) {
+                        selections[mid].push(el.value);
+                    } else if (el.type === 'text') {
+                        if (el.value) selections[mid].push(el.value);
+                    }
+                });
+                var result = [];
+                Object.keys(selections).forEach(function(mid) {
+                    if (selections[mid].length > 0)
+                        result.push({ mappingId: parseInt(mid), values: selections[mid] });
+                });
+                return result.length > 0 ? JSON.stringify(result) : null;
+            }
+
+            function addProductFromDetail() {
+                var productId = document.getElementById('add-product-select').value;
+                var qty = parseInt(document.getElementById('add-product-qty').value) || 1;
+                var msg = document.getElementById('add-product-msg');
+                if (!productId) {
+                    msg.textContent = 'Please select a product.';
+                    msg.style.display = 'block';
+                    msg.style.color = '#c0392b';
+                    return;
+                }
+                var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                var attrJson = collectAttributes();
+                var body = 'productId=' + productId + '&estimateListId=@(Model.EstimateListId)&quantity=' + qty;
+                if (attrJson) body += '&attributesJson=' + encodeURIComponent(attrJson);
+                fetch('@Url.Action("AddToEstimate", "Estimate")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': token
+                    },
+                    body: body
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    msg.textContent = data.message;
+                    msg.style.color = data.success ? '#1e7e34' : '#c0392b';
+                    msg.style.display = 'block';
+                    if (data.success) {
+                        setTimeout(function() { location.reload(); }, 800);
+                    }
+                });
             }
         </script>
     </div>

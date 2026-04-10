@@ -22,3 +22,4 @@
 /output/Nop.Plugin.Misc.EstimateBuilder.dll
 /output/Nop.Plugin.Misc.EstimateBuilder.pdb
 /src/obj/Release/ref/Nop.Plugin.Misc.EstimateBuilder.dll
+/src/obj/Release/Nop.Plugin.Misc.EstimateBuilder.sourcelink.json

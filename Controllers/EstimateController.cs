@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ClosedXML.Excel;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
@@ -34,8 +35,11 @@ public class EstimateController : BasePluginController
     private readonly IPermissionService _permissionService;
     private readonly IStoreContext _storeContext;
     private readonly IProductAttributeParser _productAttributeParser;
+    private readonly IProductAttributeService _productAttributeService;
+    private readonly IProductAttributeFormatter _productAttributeFormatter;
     private readonly IUrlRecordService _urlRecordService;
     private readonly INopUrlHelper _nopUrlHelper;
+    private readonly ICategoryService _categoryService;
 
     public EstimateController(
         IEstimateService estimateService,
@@ -47,8 +51,11 @@ public class EstimateController : BasePluginController
         IPermissionService permissionService,
         IStoreContext storeContext,
         IProductAttributeParser productAttributeParser,
+        IProductAttributeService productAttributeService,
+        IProductAttributeFormatter productAttributeFormatter,
         IUrlRecordService urlRecordService,
-        INopUrlHelper nopUrlHelper)
+        INopUrlHelper nopUrlHelper,
+        ICategoryService categoryService)
     {
         _estimateService = estimateService;
         _workContext = workContext;
@@ -59,9 +66,14 @@ public class EstimateController : BasePluginController
         _permissionService = permissionService;
         _storeContext = storeContext;
         _productAttributeParser = productAttributeParser;
+        _productAttributeService = productAttributeService;
+        _productAttributeFormatter = productAttributeFormatter;
         _urlRecordService = urlRecordService;
         _nopUrlHelper = nopUrlHelper;
+        _categoryService = categoryService;
     }
+
+    private record AttributeSelection(int MappingId, string[] Values);
 
     [HttpGet]
     public async Task<IActionResult> Index()
@@ -248,7 +260,7 @@ public class EstimateController : BasePluginController
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddToEstimate(int productId, int estimateListId, int quantity = 1, string? newEstimateName = null, string? newEstimateDescription = null)
+    public async Task<IActionResult> AddToEstimate(int productId, int estimateListId, int quantity = 1, string? newEstimateName = null, string? newEstimateDescription = null, string? attributesJson = null)
     {
         var customer = await _workContext.GetCurrentCustomerAsync();
 
@@ -277,7 +289,34 @@ public class EstimateController : BasePluginController
         if (estimate == null || estimate.CustomerId != customer.Id)
             return Json(new { success = false, message = "Invalid estimate list." });
 
-        var existing = await _estimateService.GetEstimateListItemAsync(estimateListId, productId);
+        // Build attribute XML from JSON selection
+        string attributesXml = string.Empty;
+        if (!string.IsNullOrWhiteSpace(attributesJson))
+        {
+            try
+            {
+                var selections = JsonSerializer.Deserialize<AttributeSelection[]>(attributesJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (selections != null)
+                {
+                    foreach (var sel in selections)
+                    {
+                        var pam = await _productAttributeService.GetProductAttributeMappingByIdAsync(sel.MappingId);
+                        if (pam == null) continue;
+                        foreach (var val in sel.Values)
+                            attributesXml = _productAttributeParser.AddProductAttribute(attributesXml, pam, val);
+                    }
+                }
+            }
+            catch { /* ignore malformed JSON */ }
+        }
+
+        // Match on both product and attributes so different configurations are separate line items
+        var allItems = await _estimateService.GetItemsByEstimateListIdAsync(estimateListId);
+        var existing = allItems.FirstOrDefault(i =>
+            i.ProductId == productId &&
+            string.Equals(i.AttributesXml ?? string.Empty, attributesXml ?? string.Empty, StringComparison.Ordinal));
+
         if (existing != null)
         {
             existing.Quantity += quantity;
@@ -289,11 +328,63 @@ public class EstimateController : BasePluginController
             {
                 EstimateListId = estimateListId,
                 ProductId = productId,
-                Quantity = quantity
+                Quantity = quantity,
+                AttributesXml = string.IsNullOrEmpty(attributesXml) ? null : attributesXml
             });
         }
 
         return Json(new { success = true, estimateId = estimateListId, message = $"{product.Name} Product Added Successfully To Estimate" });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetProductsByCategory(int categoryId)
+    {
+        var products = await _productService.SearchProductsAsync(
+            categoryIds: new List<int> { categoryId },
+            pageSize: 500,
+            orderBy: Nop.Core.Domain.Catalog.ProductSortingEnum.NameAsc);
+
+        return Json(products.Select(p => new { id = p.Id, name = p.Name }).ToList());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetProductAttributes(int productId)
+    {
+        var product = await _productService.GetProductByIdAsync(productId);
+        if (product == null)
+            return Json(new { hasAttributes = false });
+
+        var mappings = await _productAttributeService.GetProductAttributeMappingsByProductIdAsync(productId);
+        if (!mappings.Any())
+            return Json(new { hasAttributes = false });
+
+        var result = new List<object>();
+        foreach (var mapping in mappings)
+        {
+            var pa = await _productAttributeService.GetProductAttributeByIdAsync(mapping.ProductAttributeId);
+            var values = await _productAttributeService.GetProductAttributeValuesAsync(mapping.Id);
+            result.Add(new
+            {
+                mappingId = mapping.Id,
+                name = pa?.Name ?? "",
+                isRequired = mapping.IsRequired,
+                controlType = (int)mapping.AttributeControlType,
+                defaultValue = mapping.DefaultValue ?? "",
+                values = values.Select(v => new
+                {
+                    id = v.Id,
+                    name = v.Name,
+                    priceAdjustment = v.PriceAdjustment,
+                    priceAdjustmentStr = v.PriceAdjustment != 0
+                        ? (v.PriceAdjustment > 0 ? $"+${v.PriceAdjustment:F2}" : $"-${Math.Abs(v.PriceAdjustment):F2}")
+                        : "",
+                    isPreSelected = v.IsPreSelected,
+                    colorSquaresRgb = v.ColorSquaresRgb ?? ""
+                }).ToList()
+            });
+        }
+
+        return Json(new { hasAttributes = true, attributes = result });
     }
 
     [HttpGet]
@@ -304,25 +395,45 @@ public class EstimateController : BasePluginController
         if (estimate == null || estimate.CustomerId != customer.Id)
             return RedirectToAction(nameof(Index));
 
+        var store = await _storeContext.GetCurrentStoreAsync();
+
         using var workbook = new XLWorkbook();
         var ws = workbook.Worksheets.Add("Estimate");
 
-        ws.Cell(1, 1).Value = estimate.Name;
+        // ── Title ──────────────────────────────────────────────────
+        ws.Cell(1, 1).Value = "Estimate";
         ws.Cell(1, 1).Style.Font.Bold = true;
-        ws.Cell(1, 1).Style.Font.FontSize = 14;
+        ws.Cell(1, 1).Style.Font.FontSize = 18;
+        ws.Range(1, 1, 1, 5).Merge();
+        ws.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        ws.Cell(3, 1).Value = "SKU";
-        ws.Cell(3, 2).Value = "Product";
-        ws.Cell(3, 3).Value = "Price";
-        ws.Cell(3, 4).Value = "Qty";
-        ws.Cell(3, 5).Value = "Total";
+        // ── Metadata ───────────────────────────────────────────────
+        ws.Cell(3, 1).Value = "Date :";
+        ws.Cell(3, 1).Style.Font.Bold = true;
+        ws.Cell(3, 2).Value = DateTime.Now.ToString("MM/dd/yyyy");
 
-        var headerRow = ws.Row(3);
-        headerRow.Style.Font.Bold = true;
-        headerRow.Style.Fill.BackgroundColor = XLColor.LightGray;
+        ws.Cell(4, 1).Value = "Estimate Name :";
+        ws.Cell(4, 1).Style.Font.Bold = true;
+        ws.Cell(4, 2).Value = estimate.Name;
+
+        ws.Cell(5, 1).Value = "From :";
+        ws.Cell(5, 1).Style.Font.Bold = true;
+        ws.Cell(5, 2).Value = store.Name;
+
+        // ── Column headers ─────────────────────────────────────────
+        ws.Cell(7, 1).Value = "SKU";
+        ws.Cell(7, 2).Value = "Product";
+        ws.Cell(7, 3).Value = "Price";
+        ws.Cell(7, 4).Value = "Qty";
+        ws.Cell(7, 5).Value = "Total";
+
+        var headerRange = ws.Range(7, 1, 7, 5);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Font.FontColor = XLColor.White;
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromArgb(58, 123, 191);
 
         var items = await _estimateService.GetItemsByEstimateListIdAsync(id);
-        int row = 4;
+        int row = 8;
         decimal subTotal = 0;
 
         foreach (var item in items)
@@ -334,8 +445,15 @@ public class EstimateController : BasePluginController
             var total = price * item.Quantity;
             subTotal += total;
 
+            var relativeUrl = await _nopUrlHelper.RouteGenericUrlAsync<Nop.Core.Domain.Catalog.Product>(
+                new { SeName = await _urlRecordService.GetSeNameAsync(product) });
+            var productUrl = store.Url.TrimEnd('/') + relativeUrl;
+
             ws.Cell(row, 1).Value = product.Sku;
             ws.Cell(row, 2).Value = product.Name;
+            ws.Cell(row, 2).SetHyperlink(new XLHyperlink(productUrl));
+            ws.Cell(row, 2).Style.Font.FontColor = XLColor.FromArgb(58, 123, 191);
+            ws.Cell(row, 2).Style.Font.Underline = XLFontUnderlineValues.Single;
             ws.Cell(row, 3).Value = price;
             ws.Cell(row, 3).Style.NumberFormat.Format = "$#,##0.00";
             ws.Cell(row, 4).Value = item.Quantity;
@@ -344,11 +462,13 @@ public class EstimateController : BasePluginController
             row++;
         }
 
-        ws.Cell(row, 4).Value = "Sub Total";
+        ws.Cell(row, 4).Value = "Total Amount :";
         ws.Cell(row, 4).Style.Font.Bold = true;
+        ws.Cell(row, 4).Style.Fill.BackgroundColor = XLColor.FromArgb(230, 230, 230);
         ws.Cell(row, 5).Value = subTotal;
         ws.Cell(row, 5).Style.NumberFormat.Format = "$#,##0.00";
         ws.Cell(row, 5).Style.Font.Bold = true;
+        ws.Cell(row, 5).Style.Fill.BackgroundColor = XLColor.FromArgb(230, 230, 230);
 
         ws.Columns().AdjustToContents();
 
@@ -495,7 +615,19 @@ public class EstimateController : BasePluginController
             }
             table.AddCell(imgCell);
 
-            table.AddCell(MakeCell(product.Name));
+            // Product name as clickable link
+            var relPdfUrl = await _nopUrlHelper.RouteGenericUrlAsync<Nop.Core.Domain.Catalog.Product>(
+                new { SeName = await _urlRecordService.GetSeNameAsync(product) });
+            var absPdfUrl = store.Url.TrimEnd('/') + relPdfUrl;
+            var linkFont = FontFactory.GetFont(FontFactory.HELVETICA, 9, iTextSharp.text.Font.UNDERLINE, new BaseColor(58, 123, 191));
+            var anchor = new Anchor(product.Name, linkFont) { Reference = absPdfUrl };
+            table.AddCell(new PdfPCell(anchor)
+            {
+                Padding = 5,
+                HorizontalAlignment = Element.ALIGN_LEFT,
+                VerticalAlignment = Element.ALIGN_MIDDLE,
+                BackgroundColor = rowBg
+            });
             table.AddCell(MakeCell($"${price:F2}", Element.ALIGN_RIGHT));
             table.AddCell(MakeCell(item.Quantity.ToString(), Element.ALIGN_CENTER));
             table.AddCell(MakeCell($"${total:F2}", Element.ALIGN_RIGHT));
@@ -534,9 +666,30 @@ public class EstimateController : BasePluginController
             var product = await _productService.GetProductByIdAsync(item.ProductId);
             if (product == null) continue;
 
+            // Base price + attribute price adjustments
             var price = product.Price;
+            if (!string.IsNullOrEmpty(item.AttributesXml))
+            {
+                var attrValues = await _productAttributeParser.ParseProductAttributeValuesAsync(item.AttributesXml);
+                foreach (var av in attrValues)
+                    price += av.PriceAdjustmentUsePercentage
+                        ? product.Price * av.PriceAdjustment / 100m
+                        : av.PriceAdjustment;
+            }
+
             var total = price * item.Quantity;
             subTotal += total;
+
+            // Format selected attributes for display
+            string attributesFormatted = string.Empty;
+            if (!string.IsNullOrEmpty(item.AttributesXml))
+            {
+                var customer = await _workContext.GetCurrentCustomerAsync();
+                var store = await _storeContext.GetCurrentStoreAsync();
+                attributesFormatted = await _productAttributeFormatter.FormatAttributesAsync(
+                    product, item.AttributesXml, customer, store,
+                    separator: ", ", htmlEncode: false, renderPrices: false);
+            }
 
             string imageUrl = string.Empty;
             var pictures = await _pictureService.GetPicturesByProductIdAsync(product.Id, 1);
@@ -555,8 +708,17 @@ public class EstimateController : BasePluginController
                 PriceFormatted = $"${price:F2}",
                 Quantity = item.Quantity,
                 Total = total,
-                TotalFormatted = $"${total:F2}"
+                TotalFormatted = $"${total:F2}",
+                AttributesFormatted = attributesFormatted
             });
+        }
+
+        var allCategories = (await _categoryService.GetAllCategoriesAsync()).ToList();
+        var categoryItems = new List<CategorySelectItem>();
+        foreach (var cat in allCategories)
+        {
+            var breadcrumb = await _categoryService.GetFormattedBreadCrumbAsync(cat, allCategories);
+            categoryItems.Add(new CategorySelectItem { Id = cat.Id, Name = breadcrumb });
         }
 
         return new EstimateItemsModel
@@ -565,7 +727,8 @@ public class EstimateController : BasePluginController
             EstimateName = estimate.Name,
             Description = estimate.Description,
             Items = itemModels,
-            SubTotalFormatted = $"${subTotal:F2}"
+            SubTotalFormatted = $"${subTotal:F2}",
+            Categories = categoryItems.OrderBy(c => c.Name).ToList()
         };
     }
 }

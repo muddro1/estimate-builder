@@ -7,4 +7,5 @@ public class EstimateListItem : BaseEntity
     public int EstimateListId { get; set; }
     public int ProductId { get; set; }
     public int Quantity { get; set; }
+    public string? AttributesXml { get; set; }
 }

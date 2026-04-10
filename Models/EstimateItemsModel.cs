@@ -14,6 +14,13 @@ public class EstimateItemModel
     public decimal Total { get; set; }
     public string TotalFormatted { get; set; } = string.Empty;
     public bool Remove { get; set; }
+    public string AttributesFormatted { get; set; } = string.Empty;
+}
+
+public class CategorySelectItem
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
 }
 
 public class EstimateItemsModel
@@ -23,4 +30,5 @@ public class EstimateItemsModel
     public string? Description { get; set; }
     public IList<EstimateItemModel> Items { get; set; } = new List<EstimateItemModel>();
     public string SubTotalFormatted { get; set; } = string.Empty;
+    public IList<CategorySelectItem> Categories { get; set; } = new List<CategorySelectItem>();
 }
