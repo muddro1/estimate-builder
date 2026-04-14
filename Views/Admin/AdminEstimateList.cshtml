@@ -1,0 +1,100 @@
+@model Nop.Plugin.Misc.EstimateBuilder.Models.AdminEstimateListsModel
+@{
+    Layout = "_AdminLayout";
+    ViewBag.Title = "Estimate Builder — All Estimates";
+}
+
+<div class="content-header clearfix">
+    <h1 class="float-left">
+        Estimate Builder
+        <small>All Estimates</small>
+    </h1>
+    <div class="float-right">
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus-square"></i> New Estimate
+        </a>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+
+        <div class="card card-default">
+            <div class="card-body">
+                <form method="get" asp-action="Index" class="form-inline mb-3">
+                    <input type="text" name="searchTerm" value="@Model.SearchTerm"
+                           class="form-control mr-2" style="min-width:260px;"
+                           placeholder="Search by name, customer, or contact..." />
+                    <button type="submit" class="btn btn-default">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                    {
+                        <a asp-action="Index" class="btn btn-link ml-2">Clear</a>
+                    }
+                </form>
+
+                @if (Model.Estimates.Count == 0)
+                {
+                    <p class="text-muted">No estimates found.</p>
+                }
+                else
+                {
+                    <table class="table table-bordered table-hover table-striped">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Estimate Name</th>
+                                <th>Owner</th>
+                                <th>Type</th>
+                                <th class="text-center">Items</th>
+                                <th>Created</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var e in Model.Estimates)
+                            {
+                                <tr>
+                                    <td>
+                                        <a asp-action="Details" asp-route-id="@e.Id" class="font-weight-bold">@e.Name</a>
+                                        @if (!string.IsNullOrEmpty(e.Description))
+                                        {
+                                            <br /><small class="text-muted">@e.Description</small>
+                                        }
+                                    </td>
+                                    <td>@e.OwnerDisplay</td>
+                                    <td>
+                                        @if (e.OwnerType == "Customer")
+                                        {
+                                            <span class="badge badge-success">Customer</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-secondary">Contact</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">@e.ItemCount</td>
+                                    <td>@e.CreatedOn</td>
+                                    <td class="text-center">
+                                        <a asp-action="Details" asp-route-id="@e.Id"
+                                           class="btn btn-sm btn-info" title="View / Edit">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <form asp-action="DeleteEstimate" method="post" style="display:inline;"
+                                              onsubmit="return confirm('Delete estimate \'@e.Name\'?')">
+                                            <input type="hidden" name="id" value="@e.Id" />
+                                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+
+    </div>
+</section>

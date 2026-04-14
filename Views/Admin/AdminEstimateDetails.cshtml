@@ -1,0 +1,379 @@
+@model Nop.Plugin.Misc.EstimateBuilder.Models.AdminEstimateDetailsModel
+@{
+    Layout = "_AdminLayout";
+    ViewBag.Title = "Estimate Builder — " + Model.EstimateName;
+    var addUrl = Url.Action("AddToEstimate", "AdminEstimate", new { area = "Admin" });
+    var catUrl = Url.Action("GetProductsByCategory", "AdminEstimate", new { area = "Admin" });
+    var attrUrl = Url.Action("GetProductAttributes", "AdminEstimate", new { area = "Admin" });
+    var assignUrl = Url.Action("AssignCustomer", "AdminEstimate", new { area = "Admin" });
+    var searchUrl = Url.Action("SearchCustomers", "AdminEstimate", new { area = "Admin" });
+    var pdfUrl = Url.Action("ExportToPdf", "AdminEstimate", new { area = "Admin", id = Model.EstimateListId });
+    var xlsUrl = Url.Action("ExportToExcel", "AdminEstimate", new { area = "Admin", id = Model.EstimateListId });
+}
+
+<div class="content-header clearfix">
+    <h1 class="float-left">
+        @Model.EstimateName
+        <small>Estimate Details</small>
+    </h1>
+    <div class="float-right">
+        <a asp-action="Index" class="btn btn-default">
+            <i class="fas fa-arrow-left"></i> All Estimates
+        </a>
+        <a href="@pdfUrl" class="btn btn-secondary ml-1"><i class="fas fa-file-pdf"></i> PDF</a>
+        <a href="@xlsUrl" class="btn btn-secondary ml-1"><i class="fas fa-file-excel"></i> Excel</a>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <form asp-action="UpdateDetails" method="post">
+            <input type="hidden" asp-for="EstimateListId" />
+
+            <div class="row">
+                <!-- Estimate meta -->
+                <div class="col-md-6">
+                    <div class="card card-default">
+                        <div class="card-header"><h3 class="card-title">Estimate Info</h3></div>
+                        <div class="card-body">
+                            <div class="form-group row">
+                                <label class="col-sm-3 col-form-label font-weight-bold">Name</label>
+                                <div class="col-sm-9">
+                                    <input asp-for="EstimateName" class="form-control" />
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-sm-3 col-form-label">Description</label>
+                                <div class="col-sm-9">
+                                    <textarea asp-for="Description" class="form-control" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Owner info -->
+                <div class="col-md-6">
+                    <div class="card card-default">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                @if (Model.IsCustomerEstimate)
+                                {
+                                    <span class="badge badge-success mr-2">Customer</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-secondary mr-2">Contact</span>
+                                }
+                                Owner
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            @if (Model.IsCustomerEstimate)
+                            {
+                                <p class="mb-2"><strong>@Model.CustomerDisplay</strong></p>
+                                <a href="/Admin/Customer/Edit/@Model.CustomerId" target="_blank"
+                                   class="btn btn-sm btn-outline-secondary">View Customer</a>
+                            }
+                            else
+                            {
+                                <!-- Contact info (editable) -->
+                                <div class="form-group row mb-1">
+                                    <label class="col-sm-3 col-form-label small">Name</label>
+                                    <div class="col-sm-9"><input asp-for="ContactName" class="form-control form-control-sm" /></div>
+                                </div>
+                                <div class="form-group row mb-1">
+                                    <label class="col-sm-3 col-form-label small">Email</label>
+                                    <div class="col-sm-9"><input asp-for="ContactEmail" class="form-control form-control-sm" type="email" /></div>
+                                </div>
+                                <div class="form-group row mb-1">
+                                    <label class="col-sm-3 col-form-label small">Phone</label>
+                                    <div class="col-sm-9"><input asp-for="ContactPhone" class="form-control form-control-sm" /></div>
+                                </div>
+                                <div class="form-group row mb-1">
+                                    <label class="col-sm-3 col-form-label small">Address</label>
+                                    <div class="col-sm-9"><input asp-for="ContactAddress" class="form-control form-control-sm" /></div>
+                                </div>
+                                <div class="form-group row mb-1">
+                                    <label class="col-sm-3 col-form-label small">City</label>
+                                    <div class="col-sm-9"><input asp-for="ContactCity" class="form-control form-control-sm" /></div>
+                                </div>
+                                <div class="form-group row mb-1">
+                                    <label class="col-sm-3 col-form-label small">State</label>
+                                    <div class="col-sm-9"><input asp-for="ContactState" class="form-control form-control-sm" /></div>
+                                </div>
+                                <div class="form-group row mb-2">
+                                    <label class="col-sm-3 col-form-label small">ZIP</label>
+                                    <div class="col-sm-9"><input asp-for="ContactZip" class="form-control form-control-sm" /></div>
+                                </div>
+
+                                <!-- Assign to existing customer -->
+                                <hr class="my-2" />
+                                <p class="small text-muted mb-1">Assign to a registered customer:</p>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" id="assign-customer-search" class="form-control"
+                                           placeholder="Search by name or email..." autocomplete="off" />
+                                    <input type="hidden" id="assign-customer-id" />
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-outline-primary" onclick="doAssignCustomer()">
+                                            Assign
+                                        </button>
+                                    </div>
+                                </div>
+                                <p id="assign-msg" class="small mt-1" style="display:none;"></p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Product -->
+            <div class="card card-default">
+                <div class="card-header"><h3 class="card-title">Add Product</h3></div>
+                <div class="card-body">
+                    <div class="form-inline">
+                        <select id="add-category-select" onchange="loadProducts()"
+                                class="form-control mr-2 mb-2" style="min-width:220px;">
+                            <option value="">-- Select Category --</option>
+                            @foreach (var cat in Model.Categories)
+                            {
+                                <option value="@cat.Id">@cat.Name</option>
+                            }
+                        </select>
+                        <select id="add-product-select" disabled onchange="loadAttributes()"
+                                class="form-control mr-2 mb-2" style="min-width:240px;">
+                            <option value="">-- Select Product --</option>
+                        </select>
+                        <input type="number" id="add-product-qty" value="1" min="1"
+                               class="form-control mr-2 mb-2" style="width:70px;" />
+                        <button type="button" onclick="doAddProduct()" class="btn btn-primary mb-2">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </div>
+                    <div id="add-attr-panel" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #e5e5e5;"></div>
+                    <p id="add-product-msg" class="mt-2 small" style="display:none;"></p>
+                </div>
+            </div>
+
+            <!-- Items table -->
+            <div class="card card-default">
+                <div class="card-header"><h3 class="card-title">Products</h3></div>
+                <div class="card-body p-0">
+                    @if (!Model.Items.Any())
+                    {
+                        <p class="p-3 text-muted">No products in this estimate yet.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th class="text-center" style="width:50px;">Remove</th>
+                                    <th style="width:90px;">SKU</th>
+                                    <th style="width:80px;">Image</th>
+                                    <th>Product</th>
+                                    <th class="text-right" style="width:90px;">Price</th>
+                                    <th class="text-center" style="width:80px;">Qty</th>
+                                    <th class="text-right" style="width:90px;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.Items.Count; i++)
+                                {
+                                    <input type="hidden" name="Items[@i].Id" value="@Model.Items[i].Id" />
+                                    <input type="hidden" name="Items[@i].ProductId" value="@Model.Items[i].ProductId" />
+                                    <tr>
+                                        <td class="text-center align-middle">
+                                            <input type="checkbox" name="Items[@i].Remove" value="true" />
+                                        </td>
+                                        <td class="align-middle small">@Model.Items[i].Sku</td>
+                                        <td class="align-middle">
+                                            @if (!string.IsNullOrEmpty(Model.Items[i].ImageUrl))
+                                            {
+                                                <img src="@Model.Items[i].ImageUrl" alt="" style="max-width:60px;" />
+                                            }
+                                        </td>
+                                        <td class="align-middle">
+                                            <a href="@Model.Items[i].ProductUrl" target="_blank">@Model.Items[i].ProductName</a>
+                                            @if (!string.IsNullOrEmpty(Model.Items[i].AttributesFormatted))
+                                            {
+                                                <div class="small text-muted">@Model.Items[i].AttributesFormatted</div>
+                                            }
+                                        </td>
+                                        <td class="text-right align-middle">@Model.Items[i].PriceFormatted</td>
+                                        <td class="text-center align-middle">
+                                            <input type="number" name="Items[@i].Quantity" value="@Model.Items[i].Quantity"
+                                                   min="1" class="form-control form-control-sm text-center" style="width:65px;" />
+                                        </td>
+                                        <td class="text-right align-middle">@Model.Items[i].TotalFormatted</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="font-weight-bold">
+                                    <td colspan="6" class="text-right">Sub Total</td>
+                                    <td class="text-right">@Model.SubTotalFormatted</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    }
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary mr-2">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <form asp-action="DeleteEstimate" method="post" style="display:inline;"
+                          onsubmit="return confirm('Delete this estimate permanently?')">
+                        <input type="hidden" name="id" value="@Model.EstimateListId" />
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Delete Estimate
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+        </form><!-- /main form -->
+    </div>
+</section>
+
+<script>
+var ADD_URL = '@Html.Raw(addUrl)';
+var CAT_URL = '@Html.Raw(catUrl)';
+var ATTR_URL = '@Html.Raw(attrUrl)';
+var ASSIGN_URL = '@Html.Raw(assignUrl)';
+var SEARCH_URL = '@Html.Raw(searchUrl)';
+var ESTIMATE_ID = @Model.EstimateListId;
+
+function loadProducts() {
+    var catId = document.getElementById('add-category-select').value;
+    var sel = document.getElementById('add-product-select');
+    sel.innerHTML = '<option value="">-- Loading... --</option>';
+    sel.disabled = true;
+    resetAttrPanel();
+    if (!catId) { sel.innerHTML = '<option value="">-- Select Product --</option>'; return; }
+    fetch(CAT_URL + '?categoryId=' + catId)
+        .then(r => r.json())
+        .then(data => {
+            sel.innerHTML = '<option value="">-- Select Product --</option>';
+            data.forEach(p => { var o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });
+            sel.disabled = false;
+        });
+}
+
+function loadAttributes() {
+    var pid = document.getElementById('add-product-select').value;
+    resetAttrPanel();
+    if (!pid) return;
+    fetch(ATTR_URL + '?productId=' + pid)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.hasAttributes) return;
+            var panel = document.getElementById('add-attr-panel');
+            var html = '<strong>Configure Options:</strong><div class="mt-2" style="display:flex;flex-wrap:wrap;gap:16px;">';
+            data.attributes.forEach(function(attr) {
+                html += '<div>';
+                html += '<label class="font-weight-bold small">' + attr.name + (attr.isRequired ? ' <span class="text-danger">*</span>' : '') + '</label><br/>';
+                var ct = attr.controlType;
+                if (ct === 1) {
+                    html += '<select data-attr-mapping="' + attr.mappingId + '" class="form-control form-control-sm">';
+                    if (!attr.isRequired) html += '<option value="">-- None --</option>';
+                    attr.values.forEach(v => { html += '<option value="' + v.id + '"' + (v.isPreSelected ? ' selected' : '') + '>' + v.name + (v.priceAdjustmentStr ? ' (' + v.priceAdjustmentStr + ')' : '') + '</option>'; });
+                    html += '</select>';
+                } else if (ct === 2 || ct === 40) {
+                    attr.values.forEach(v => {
+                        var swatch = (ct === 40 && v.colorSquaresRgb) ? '<span style="display:inline-block;width:12px;height:12px;background:' + v.colorSquaresRgb + ';border:1px solid #999;margin-right:3px;vertical-align:middle;border-radius:2px;"></span>' : '';
+                        html += '<label class="mr-3 small"><input type="radio" name="attr-' + attr.mappingId + '" data-attr-mapping="' + attr.mappingId + '" value="' + v.id + '"' + (v.isPreSelected ? ' checked' : '') + '> ' + swatch + v.name + (v.priceAdjustmentStr ? ' (' + v.priceAdjustmentStr + ')' : '') + '</label>';
+                    });
+                } else if (ct === 3) {
+                    attr.values.forEach(v => { html += '<label class="mr-3 small"><input type="checkbox" data-attr-mapping="' + attr.mappingId + '" value="' + v.id + '"' + (v.isPreSelected ? ' checked' : '') + '> ' + v.name + '</label>'; });
+                } else if (ct === 10) {
+                    html += '<textarea data-attr-mapping="' + attr.mappingId + '" class="form-control form-control-sm" rows="2" style="width:200px;">' + attr.defaultValue + '</textarea>';
+                } else {
+                    html += '<input type="text" data-attr-mapping="' + attr.mappingId + '" value="' + attr.defaultValue + '" class="form-control form-control-sm" style="width:180px;" />';
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            panel.innerHTML = html;
+            panel.style.display = 'block';
+        });
+}
+
+function resetAttrPanel() {
+    var p = document.getElementById('add-attr-panel');
+    p.innerHTML = ''; p.style.display = 'none';
+}
+
+function collectAttributes() {
+    var panel = document.getElementById('add-attr-panel');
+    if (panel.style.display === 'none') return null;
+    var sel = {};
+    panel.querySelectorAll('[data-attr-mapping]').forEach(el => {
+        var mid = el.getAttribute('data-attr-mapping');
+        if (!sel[mid]) sel[mid] = [];
+        if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') { if (el.value) sel[mid].push(el.value); }
+        else if (el.type === 'radio' && el.checked) sel[mid].push(el.value);
+        else if (el.type === 'checkbox' && el.checked) sel[mid].push(el.value);
+        else if (el.type === 'text' && el.value) sel[mid].push(el.value);
+    });
+    var result = Object.keys(sel).filter(k => sel[k].length).map(k => ({ mappingId: parseInt(k), values: sel[k] }));
+    return result.length ? JSON.stringify(result) : null;
+}
+
+function doAddProduct() {
+    var pid = document.getElementById('add-product-select').value;
+    var qty = parseInt(document.getElementById('add-product-qty').value) || 1;
+    var msg = document.getElementById('add-product-msg');
+    if (!pid) { showMsg(msg, 'Please select a product.', false); return; }
+    var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    var body = 'productId=' + pid + '&estimateListId=' + ESTIMATE_ID + '&quantity=' + qty;
+    var attrJson = collectAttributes();
+    if (attrJson) body += '&attributesJson=' + encodeURIComponent(attrJson);
+    fetch(ADD_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token }, body: body })
+        .then(r => r.json())
+        .then(data => {
+            showMsg(msg, data.message, data.success);
+            if (data.success) setTimeout(() => location.reload(), 800);
+        });
+}
+
+function showMsg(el, text, ok) {
+    el.textContent = text;
+    el.className = 'mt-2 small ' + (ok ? 'text-success' : 'text-danger');
+    el.style.display = 'block';
+}
+
+@if (!Model.IsCustomerEstimate)
+{
+    <text>
+$(function() {
+    $('#assign-customer-search').autocomplete({
+        minLength: 2,
+        source: function(req, res) { $.getJSON(SEARCH_URL, { term: req.term }, res); },
+        select: function(e, ui) {
+            $('#assign-customer-id').val(ui.item.id);
+            $('#assign-customer-search').val(ui.item.label);
+            return false;
+        }
+    });
+});
+
+function doAssignCustomer() {
+    var cid = $('#assign-customer-id').val();
+    var msg = document.getElementById('assign-msg');
+    if (!cid) { showMsg(msg, 'Please select a customer from the dropdown.', false); return; }
+    var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    fetch(ASSIGN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
+        body: 'estimateId=' + ESTIMATE_ID + '&customerId=' + cid })
+        .then(r => r.json())
+        .then(data => {
+            showMsg(msg, data.success ? 'Assigned to ' + data.customerDisplay : (data.message || 'Error'), data.success);
+            if (data.success) setTimeout(() => location.reload(), 1200);
+        });
+}
+    </text>
+}
+</script>

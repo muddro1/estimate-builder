@@ -1,0 +1,169 @@
+@model Nop.Plugin.Misc.EstimateBuilder.Models.AdminCreateEstimateModel
+@{
+    Layout = "_AdminLayout";
+    ViewBag.Title = "Estimate Builder — New Estimate";
+}
+
+<div class="content-header clearfix">
+    <h1 class="float-left">
+        Estimate Builder
+        <small>New Estimate</small>
+    </h1>
+    <div class="float-right">
+        <a asp-action="Index" class="btn btn-default">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <form asp-action="Create" method="post">
+            <div class="row">
+
+                <!-- Estimate Info -->
+                <div class="col-md-6">
+                    <div class="card card-default">
+                        <div class="card-header">
+                            <h3 class="card-title">Estimate Details</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group row">
+                                <label class="col-sm-3 col-form-label font-weight-bold">Name <span class="text-danger">*</span></label>
+                                <div class="col-sm-9">
+                                    <input asp-for="Name" class="form-control" placeholder="e.g. Kitchen Renovation" />
+                                    <span asp-validation-for="Name" class="text-danger small"></span>
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-sm-3 col-form-label">Description</label>
+                                <div class="col-sm-9">
+                                    <textarea asp-for="Description" class="form-control" rows="3"
+                                              placeholder="Optional notes"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Owner Selection -->
+                <div class="col-md-6">
+                    <div class="card card-default">
+                        <div class="card-header">
+                            <h3 class="card-title">Assign To</h3>
+                        </div>
+                        <div class="card-body">
+
+                            <div class="form-group">
+                                <div class="custom-control custom-radio custom-control-inline">
+                                    <input type="radio" id="rb-contact" name="IsExistingCustomer" value="false"
+                                           class="custom-control-input" checked="@(Model.IsExistingCustomer ? null : "checked")"
+                                           onchange="toggleOwnerMode(false)" />
+                                    <label class="custom-control-label" for="rb-contact">New Contact (no account)</label>
+                                </div>
+                                <div class="custom-control custom-radio custom-control-inline">
+                                    <input type="radio" id="rb-customer" name="IsExistingCustomer" value="true"
+                                           class="custom-control-input" @(Model.IsExistingCustomer ? "checked" : "")
+                                           onchange="toggleOwnerMode(true)" />
+                                    <label class="custom-control-label" for="rb-customer">Existing Customer</label>
+                                </div>
+                            </div>
+
+                            <!-- Existing customer panel -->
+                            <div id="panel-customer" style="@(Model.IsExistingCustomer ? "" : "display:none")">
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label font-weight-bold">Customer</label>
+                                    <div class="col-sm-8">
+                                        <input type="hidden" asp-for="CustomerId" id="customer-id-input" />
+                                        <input type="text" id="customer-search" class="form-control"
+                                               placeholder="Type name or email to search..."
+                                               value="@Model.CustomerSearch" autocomplete="off" />
+                                        <small class="text-muted">Start typing to search registered customers.</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact info panel -->
+                            <div id="panel-contact" style="@(Model.IsExistingCustomer ? "display:none" : "")">
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">Name</label>
+                                    <div class="col-sm-8">
+                                        <input asp-for="ContactName" class="form-control" placeholder="Full name" />
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">Email</label>
+                                    <div class="col-sm-8">
+                                        <input asp-for="ContactEmail" class="form-control" type="email" placeholder="email@example.com" />
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">Phone</label>
+                                    <div class="col-sm-8">
+                                        <input asp-for="ContactPhone" class="form-control" placeholder="(555) 555-5555" />
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">Address</label>
+                                    <div class="col-sm-8">
+                                        <input asp-for="ContactAddress" class="form-control" placeholder="Street address" />
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">City</label>
+                                    <div class="col-sm-8">
+                                        <input asp-for="ContactCity" class="form-control" />
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">State</label>
+                                    <div class="col-sm-8">
+                                        <input asp-for="ContactState" class="form-control" />
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">ZIP</label>
+                                    <div class="col-sm-8">
+                                        <input asp-for="ContactZip" class="form-control" />
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /row -->
+
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Create Estimate &amp; Add Products
+                    </button>
+                    <a asp-action="Index" class="btn btn-default ml-2">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script>
+function toggleOwnerMode(isCustomer) {
+    document.getElementById('panel-customer').style.display = isCustomer ? '' : 'none';
+    document.getElementById('panel-contact').style.display = isCustomer ? 'none' : '';
+}
+
+$(function () {
+    $('#customer-search').autocomplete({
+        minLength: 2,
+        source: function (req, res) {
+            $.getJSON('@Url.Action("SearchCustomers", "AdminEstimate", new { area = "Admin" })',
+                { term: req.term }, res);
+        },
+        select: function (e, ui) {
+            $('#customer-id-input').val(ui.item.id);
+            $('#customer-search').val(ui.item.label);
+            return false;
+        }
+    });
+});
+</script>

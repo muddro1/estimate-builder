@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "yDESiMtarWU=",
+  "dgSpecHash": "B1kDTEwVCnE=",
   "success": true,
-  "projectFilePath": "/src/Nop.Plugin.Misc.EstimateBuilder.csproj",
+  "projectFilePath": "/src/src/Nop.Plugin.Misc.EstimateBuilder.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

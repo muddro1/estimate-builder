@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/src/Nop.Plugin.Misc.EstimateBuilder.csproj": {}
+    "/src/src/Nop.Plugin.Misc.EstimateBuilder.csproj": {}
   },
   "projects": {
-    "/src/Nop.Plugin.Misc.EstimateBuilder.csproj": {
+    "/src/src/Nop.Plugin.Misc.EstimateBuilder.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/src/Nop.Plugin.Misc.EstimateBuilder.csproj",
+        "projectUniqueName": "/src/src/Nop.Plugin.Misc.EstimateBuilder.csproj",
         "projectName": "Nop.Plugin.Misc.EstimateBuilder",
-        "projectPath": "/src/Nop.Plugin.Misc.EstimateBuilder.csproj",
+        "projectPath": "/src/src/Nop.Plugin.Misc.EstimateBuilder.csproj",
         "packagesPath": "/root/.nuget/packages/",
-        "outputPath": "/src/obj/",
+        "outputPath": "/src/src/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/root/.nuget/NuGet/NuGet.Config"

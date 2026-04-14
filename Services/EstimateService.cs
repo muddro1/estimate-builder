@@ -22,6 +22,12 @@ public class EstimateService : IEstimateService
             q.Where(e => e.CustomerId == customerId).OrderByDescending(e => e.CreatedOnUtc));
     }
 
+    public async Task<IList<EstimateList>> GetAllEstimateListsAsync()
+    {
+        return await _estimateListRepository.GetAllAsync(q =>
+            q.OrderByDescending(e => e.CreatedOnUtc));
+    }
+
     public async Task<EstimateList?> GetEstimateListByIdAsync(int id)
     {
         return await _estimateListRepository.GetByIdAsync(id);

@@ -36,6 +36,6 @@ public class EstimateBuilderPlugin : BasePlugin, IWidgetPlugin
 
     public override string GetConfigurationPageUrl()
     {
-        return _webHelper.GetStoreLocation() + "estimate";
+        return _webHelper.GetStoreLocation() + "Admin/AdminEstimate";
     }
 }

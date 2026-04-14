@@ -267,6 +267,7 @@ public class EstimateController : BasePluginController
                 product,
                 Nop.Core.Domain.Orders.ShoppingCartType.ShoppingCart,
                 store.Id,
+                attributesXml: item.AttributesXml,
                 quantity: item.Quantity);
         }
 
