@@ -384,6 +384,9 @@ public class EstimateDocumentService : IEstimateDocumentService
             metadata.Add(("For :", estimate.ContactName
                 + (string.IsNullOrEmpty(estimate.ContactEmail) ? string.Empty : $" — {estimate.ContactEmail}")));
 
+        if (!string.IsNullOrWhiteSpace(estimate.ContactCompany))
+            metadata.Add(("Company :", estimate.ContactCompany));
+
         return metadata;
     }
 

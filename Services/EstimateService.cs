@@ -39,6 +39,7 @@ public class EstimateService : IEstimateService
             where string.IsNullOrEmpty(term)
                   || e.Name.Contains(term)
                   || (e.ContactName != null && e.ContactName.Contains(term))
+                  || (e.ContactCompany != null && e.ContactCompany.Contains(term))
                   || (e.ContactEmail != null && e.ContactEmail.Contains(term))
                   || (c != null && (
                       (c.Email != null && c.Email.Contains(term))
@@ -86,6 +87,7 @@ public class EstimateService : IEstimateService
             Note = original.Note,
             CreatedOnUtc = DateTime.UtcNow,
             ContactName = original.ContactName,
+            ContactCompany = original.ContactCompany,
             ContactEmail = original.ContactEmail,
             ContactPhone = original.ContactPhone,
             ContactAddress = original.ContactAddress,

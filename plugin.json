@@ -10,5 +10,5 @@
   "LimitedToCustomerRoles": [],
   "DependsOnSystemNames": [],
   "SystemName": "Misc.EstimateBuilder",
-  "Version": "1.2.0"
+  "Version": "1.3.0"
 }

@@ -166,7 +166,7 @@ public class AdminEstimateController : BasePluginController
                 Description = e.Description,
                 OwnerDisplay = isCustomer
                     ? customers.TryGetValue(e.CustomerId, out var customer) ? FormatCustomer(customer) : $"Customer #{e.CustomerId}"
-                    : e.ContactName ?? e.ContactEmail ?? "Unknown Contact",
+                    : FormatContact(e),
                 OwnerType = isCustomer ? "Customer" : "Contact",
                 ItemCount = itemCounts.TryGetValue(e.Id, out var count) ? count : 0,
                 CreatedOn = (await _dateTimeHelper.ConvertToUserTimeAsync(e.CreatedOnUtc, DateTimeKind.Utc)).ToString("M/d/yyyy")
@@ -218,6 +218,7 @@ public class AdminEstimateController : BasePluginController
         {
             estimate.CustomerId = 0;
             estimate.ContactName = model.ContactName?.Trim();
+            estimate.ContactCompany = model.ContactCompany?.Trim();
             estimate.ContactEmail = model.ContactEmail?.Trim();
             estimate.ContactPhone = model.ContactPhone?.Trim();
             estimate.ContactAddress = model.ContactAddress?.Trim();
@@ -268,6 +269,7 @@ public class AdminEstimateController : BasePluginController
         if (estimate.CustomerId == 0)
         {
             estimate.ContactName = model.ContactName?.Trim();
+            estimate.ContactCompany = model.ContactCompany?.Trim();
             estimate.ContactEmail = model.ContactEmail?.Trim();
             estimate.ContactPhone = model.ContactPhone?.Trim();
             estimate.ContactAddress = model.ContactAddress?.Trim();
@@ -429,6 +431,14 @@ public class AdminEstimateController : BasePluginController
             _documentService.GetExportFileName(estimate, "pdf"));
     }
 
+    private static string FormatContact(EstimateList estimate)
+    {
+        var name = estimate.ContactName ?? estimate.ContactEmail;
+        if (string.IsNullOrEmpty(estimate.ContactCompany))
+            return name ?? "Unknown Contact";
+        return name == null ? estimate.ContactCompany : $"{name} ({estimate.ContactCompany})";
+    }
+
     private static string FormatCustomer(Customer customer)
     {
         var fullName = $"{customer.FirstName} {customer.LastName}".Trim();
@@ -469,6 +479,7 @@ public class AdminEstimateController : BasePluginController
             CustomerId = estimate.CustomerId,
             CustomerDisplay = customerDisplay,
             ContactName = estimate.ContactName,
+            ContactCompany = estimate.ContactCompany,
             ContactEmail = estimate.ContactEmail,
             ContactPhone = estimate.ContactPhone,
             ContactAddress = estimate.ContactAddress,

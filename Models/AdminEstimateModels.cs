@@ -35,6 +35,8 @@ public class AdminCreateEstimateModel
     [StringLength(500)]
     public string? ContactName { get; set; }
     [StringLength(500)]
+    public string? ContactCompany { get; set; }
+    [StringLength(500)]
     public string? ContactEmail { get; set; }
     [StringLength(100)]
     public string? ContactPhone { get; set; }
@@ -69,6 +71,8 @@ public class AdminEstimateDetailsModel : EstimateItemsModel
     // Contact info (if no customer)
     [StringLength(500)]
     public string? ContactName { get; set; }
+    [StringLength(500)]
+    public string? ContactCompany { get; set; }
     [StringLength(500)]
     public string? ContactEmail { get; set; }
     [StringLength(100)]
