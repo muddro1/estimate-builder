@@ -1,6 +1,7 @@
 @model Nop.Plugin.Misc.EstimateBuilder.Models.ConfigureModel
 @{
     Layout = "_AdminLayout";
+    NopHtml.SetActiveMenuItemSystemName(EstimateBuilderDefaults.MenuSettings);
     ViewBag.Title = "Estimate Builder — Settings";
     var excluded = Model.ExcludedCategoryIds.ToHashSet();
 }

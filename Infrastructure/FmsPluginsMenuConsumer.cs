@@ -1,3 +1,4 @@
+using Nop.Core;
 using Nop.Services.Events;
 using Nop.Services.Plugins;
 using Nop.Services.Security;
@@ -7,8 +8,8 @@ using Nop.Web.Framework.Menu;
 namespace Nop.Plugin.Misc.EstimateBuilder.Infrastructure;
 
 /// <summary>
-/// Puts this plugin's settings page under the shared "FMS Plugins" admin menu.
-/// Every FMS plugin carries a copy of this consumer and looks the parent up by the same system name,
+/// Adds an "Estimate Builder" group (All Estimates, New Estimate, Settings) under the shared "FMS Plugins"
+/// admin menu. Every FMS plugin carries a consumer like this and looks the parent up by the same system name,
 /// so whichever runs first creates it and the rest add themselves underneath.
 /// </summary>
 public class FmsPluginsMenuConsumer : IConsumer<AdminMenuCreatedEvent>
@@ -19,16 +20,13 @@ public class FmsPluginsMenuConsumer : IConsumer<AdminMenuCreatedEvent>
     private const string ParentIconClass = "fas fa-puzzle-piece";
     private const string InsertBeforeSystemName = "Third party plugins";
 
-    // This plugin's entry
-    private const string ItemSystemName = "FmsPlugins.EstimateBuilder";
-    private const string ItemTitle = "Estimate Builder";
-    private const string ItemUrl = "~/Admin/AdminEstimate/Configure";
-
     private readonly IPluginManager<IPlugin> _pluginManager;
+    private readonly IWorkContext _workContext;
 
-    public FmsPluginsMenuConsumer(IPluginManager<IPlugin> pluginManager)
+    public FmsPluginsMenuConsumer(IPluginManager<IPlugin> pluginManager, IWorkContext workContext)
     {
         _pluginManager = pluginManager;
+        _workContext = workContext;
     }
 
     public async Task HandleEventAsync(AdminMenuCreatedEvent eventMessage)
@@ -52,18 +50,49 @@ public class FmsPluginsMenuConsumer : IConsumer<AdminMenuCreatedEvent>
                 root.ChildNodes.Add(parent);
         }
 
-        if (parent.ChildNodes.Any(node => node.SystemName == ItemSystemName))
+        if (parent.ChildNodes.Any(node => node.SystemName == EstimateBuilderDefaults.MenuGroup))
             return;
+
+        // Estimates span every customer, so vendors (who hold Orders.OrdersView by default) never get these links.
+        // nopCommerce hides each item the current admin lacks the permission for, and the group once none remain.
+        var isVendor = await _workContext.GetCurrentVendorAsync() != null;
 
         parent.ChildNodes.Add(new AdminMenuItem
         {
-            SystemName = ItemSystemName,
-            Title = ItemTitle,
-            IconClass = "far fa-dot-circle",
-            Url = ItemUrl,
+            SystemName = EstimateBuilderDefaults.MenuGroup,
+            Title = "Estimate Builder",
+            IconClass = "far fa-file-alt",
             Visible = true,
-            // nopCommerce hides the item (and the parent, once it has no visible children) without this permission
-            PermissionNames = new List<string> { StandardPermission.Configuration.MANAGE_PLUGINS }
+            ChildNodes = new List<AdminMenuItem>
+            {
+                new()
+                {
+                    SystemName = EstimateBuilderDefaults.MenuAllEstimates,
+                    Title = "All Estimates",
+                    IconClass = "far fa-dot-circle",
+                    Url = "~/Admin/AdminEstimate/Index",
+                    Visible = !isVendor,
+                    PermissionNames = new List<string> { StandardPermission.Orders.ORDERS_VIEW }
+                },
+                new()
+                {
+                    SystemName = EstimateBuilderDefaults.MenuNewEstimate,
+                    Title = "New Estimate",
+                    IconClass = "far fa-dot-circle",
+                    Url = "~/Admin/AdminEstimate/Create",
+                    Visible = !isVendor,
+                    PermissionNames = new List<string> { StandardPermission.Orders.ORDERS_CREATE_EDIT_DELETE }
+                },
+                new()
+                {
+                    SystemName = EstimateBuilderDefaults.MenuSettings,
+                    Title = "Settings",
+                    IconClass = "far fa-dot-circle",
+                    Url = "~/Admin/AdminEstimate/Configure",
+                    Visible = true,
+                    PermissionNames = new List<string> { StandardPermission.Configuration.MANAGE_PLUGINS }
+                }
+            }
         });
 
         parent.ChildNodes = parent.ChildNodes.OrderBy(node => node.Title).ToList();

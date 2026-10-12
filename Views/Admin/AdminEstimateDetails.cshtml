@@ -1,6 +1,7 @@
 @model Nop.Plugin.Misc.EstimateBuilder.Models.AdminEstimateDetailsModel
 @{
     Layout = "_AdminLayout";
+    NopHtml.SetActiveMenuItemSystemName(EstimateBuilderDefaults.MenuAllEstimates);
     ViewBag.Title = "Estimate Builder — " + Model.EstimateName;
     var addUrl = Url.Action("AddToEstimate", "AdminEstimate", new { area = "Admin" });
     var catUrl = Url.Action("GetProductsByCategory", "AdminEstimate", new { area = "Admin" });
