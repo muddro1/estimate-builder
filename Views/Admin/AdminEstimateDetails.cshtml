@@ -72,7 +72,7 @@
                             @if (Model.IsCustomerEstimate)
                             {
                                 <p class="mb-2"><strong>@Model.CustomerDisplay</strong></p>
-                                <a href="/Admin/Customer/Edit/@Model.CustomerId" target="_blank"
+                                <a href="@Url.Action("Edit", "Customer", new { area = AreaNames.ADMIN, id = Model.CustomerId })" target="_blank"
                                    class="btn btn-sm btn-outline-secondary">View Customer</a>
                             }
                             else
@@ -225,20 +225,26 @@
                     <button type="submit" class="btn btn-primary mr-2">
                         <i class="fas fa-save"></i> Save Changes
                     </button>
-                    <form asp-action="DeleteEstimate" method="post" style="display:inline;"
-                          onsubmit="return confirm('Delete this estimate permanently?')">
-                        <input type="hidden" name="id" value="@Model.EstimateListId" />
-                        <button type="submit" class="btn btn-danger">
-                            <i class="fas fa-trash"></i> Delete Estimate
-                        </button>
-                    </form>
+                    @* Submits the separate delete form below; forms can't be nested inside the main form *@
+                    <button type="submit" form="delete-estimate-form" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete Estimate
+                    </button>
                 </div>
             </div>
 
         </form><!-- /main form -->
+
+        <form id="delete-estimate-form" asp-action="DeleteEstimate" method="post"
+              onsubmit="return confirm('Delete this estimate permanently?')">
+            <input type="hidden" name="id" value="@Model.EstimateListId" />
+        </form>
     </div>
 </section>
 
+<style>
+    .estimate-attr-group { gap: 16px; }
+</style>
+<script src="@Url.Content(EstimateBuilderDefaults.ScriptPath)"></script>
 <script>
 var ADD_URL = '@Html.Raw(addUrl)';
 var CAT_URL = '@Html.Raw(catUrl)';
@@ -254,7 +260,7 @@ function loadProducts() {
     sel.disabled = true;
     resetAttrPanel();
     if (!catId) { sel.innerHTML = '<option value="">-- Select Product --</option>'; return; }
-    fetch(CAT_URL + '?categoryId=' + catId)
+    fetch(CAT_URL + '?categoryId=' + encodeURIComponent(catId))
         .then(r => r.json())
         .then(data => {
             sel.innerHTML = '<option value="">-- Select Product --</option>';
@@ -267,38 +273,18 @@ function loadAttributes() {
     var pid = document.getElementById('add-product-select').value;
     resetAttrPanel();
     if (!pid) return;
-    fetch(ATTR_URL + '?productId=' + pid)
+    fetch(ATTR_URL + '?productId=' + encodeURIComponent(pid))
         .then(r => r.json())
         .then(data => {
             if (!data.hasAttributes) return;
-            var panel = document.getElementById('add-attr-panel');
-            var html = '<strong>Configure Options:</strong><div class="mt-2" style="display:flex;flex-wrap:wrap;gap:16px;">';
-            data.attributes.forEach(function(attr) {
-                html += '<div>';
-                html += '<label class="font-weight-bold small">' + attr.name + (attr.isRequired ? ' <span class="text-danger">*</span>' : '') + '</label><br/>';
-                var ct = attr.controlType;
-                if (ct === 1) {
-                    html += '<select data-attr-mapping="' + attr.mappingId + '" class="form-control form-control-sm">';
-                    if (!attr.isRequired) html += '<option value="">-- None --</option>';
-                    attr.values.forEach(v => { html += '<option value="' + v.id + '"' + (v.isPreSelected ? ' selected' : '') + '>' + v.name + (v.priceAdjustmentStr ? ' (' + v.priceAdjustmentStr + ')' : '') + '</option>'; });
-                    html += '</select>';
-                } else if (ct === 2 || ct === 40) {
-                    attr.values.forEach(v => {
-                        var swatch = (ct === 40 && v.colorSquaresRgb) ? '<span style="display:inline-block;width:12px;height:12px;background:' + v.colorSquaresRgb + ';border:1px solid #999;margin-right:3px;vertical-align:middle;border-radius:2px;"></span>' : '';
-                        html += '<label class="mr-3 small"><input type="radio" name="attr-' + attr.mappingId + '" data-attr-mapping="' + attr.mappingId + '" value="' + v.id + '"' + (v.isPreSelected ? ' checked' : '') + '> ' + swatch + v.name + (v.priceAdjustmentStr ? ' (' + v.priceAdjustmentStr + ')' : '') + '</label>';
-                    });
-                } else if (ct === 3) {
-                    attr.values.forEach(v => { html += '<label class="mr-3 small"><input type="checkbox" data-attr-mapping="' + attr.mappingId + '" value="' + v.id + '"' + (v.isPreSelected ? ' checked' : '') + '> ' + v.name + '</label>'; });
-                } else if (ct === 10) {
-                    html += '<textarea data-attr-mapping="' + attr.mappingId + '" class="form-control form-control-sm" rows="2" style="width:200px;">' + attr.defaultValue + '</textarea>';
-                } else {
-                    html += '<input type="text" data-attr-mapping="' + attr.mappingId + '" value="' + attr.defaultValue + '" class="form-control form-control-sm" style="width:180px;" />';
-                }
-                html += '</div>';
-            });
-            html += '</div>';
-            panel.innerHTML = html;
-            panel.style.display = 'block';
+            EstimateBuilder.renderAttributes(document.getElementById('add-attr-panel'), data.attributes, {
+                group: 'mt-2 d-flex flex-wrap estimate-attr-group',
+                label: 'font-weight-bold small',
+                select: 'form-control form-control-sm',
+                input: 'form-control form-control-sm',
+                textarea: 'form-control form-control-sm',
+                option: 'mr-3 small'
+            }, true);
         });
 }
 
@@ -307,32 +293,18 @@ function resetAttrPanel() {
     p.innerHTML = ''; p.style.display = 'none';
 }
 
-function collectAttributes() {
-    var panel = document.getElementById('add-attr-panel');
-    if (panel.style.display === 'none') return null;
-    var sel = {};
-    panel.querySelectorAll('[data-attr-mapping]').forEach(el => {
-        var mid = el.getAttribute('data-attr-mapping');
-        if (!sel[mid]) sel[mid] = [];
-        if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') { if (el.value) sel[mid].push(el.value); }
-        else if (el.type === 'radio' && el.checked) sel[mid].push(el.value);
-        else if (el.type === 'checkbox' && el.checked) sel[mid].push(el.value);
-        else if (el.type === 'text' && el.value) sel[mid].push(el.value);
-    });
-    var result = Object.keys(sel).filter(k => sel[k].length).map(k => ({ mappingId: parseInt(k), values: sel[k] }));
-    return result.length ? JSON.stringify(result) : null;
-}
-
 function doAddProduct() {
     var pid = document.getElementById('add-product-select').value;
-    var qty = parseInt(document.getElementById('add-product-qty').value) || 1;
+    var qty = parseInt(document.getElementById('add-product-qty').value, 10) || 1;
     var msg = document.getElementById('add-product-msg');
     if (!pid) { showMsg(msg, 'Please select a product.', false); return; }
     var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-    var body = 'productId=' + pid + '&estimateListId=' + ESTIMATE_ID + '&quantity=' + qty;
-    var attrJson = collectAttributes();
-    if (attrJson) body += '&attributesJson=' + encodeURIComponent(attrJson);
-    fetch(ADD_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token }, body: body })
+    var params = new URLSearchParams();
+    params.append('productId', pid);
+    params.append('estimateListId', ESTIMATE_ID);
+    params.append('quantity', qty);
+    EstimateBuilder.appendAttributes(document.getElementById('add-attr-panel'), params);
+    fetch(ADD_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token }, body: params.toString() })
         .then(r => r.json())
         .then(data => {
             showMsg(msg, data.message, data.success);
@@ -367,7 +339,7 @@ function doAssignCustomer() {
     if (!cid) { showMsg(msg, 'Please select a customer from the dropdown.', false); return; }
     var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
     fetch(ASSIGN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
-        body: 'estimateId=' + ESTIMATE_ID + '&customerId=' + cid })
+        body: 'estimateId=' + ESTIMATE_ID + '&customerId=' + encodeURIComponent(cid) })
         .then(r => r.json())
         .then(data => {
             showMsg(msg, data.success ? 'Assigned to ' + data.customerDisplay : (data.message || 'Error'), data.success);

@@ -75,10 +75,11 @@
                                     <label class="col-sm-4 col-form-label font-weight-bold">Customer</label>
                                     <div class="col-sm-8">
                                         <input type="hidden" asp-for="CustomerId" id="customer-id-input" />
-                                        <input type="text" id="customer-search" class="form-control"
+                                        <input type="text" id="customer-search" name="CustomerSearch" class="form-control"
                                                placeholder="Type name or email to search..."
                                                value="@Model.CustomerSearch" autocomplete="off" />
-                                        <small class="text-muted">Start typing to search registered customers.</small>
+                                        <span asp-validation-for="CustomerSearch" class="text-danger small"></span>
+                                        <small class="text-muted d-block">Start typing to search registered customers.</small>
                                     </div>
                                 </div>
                             </div>

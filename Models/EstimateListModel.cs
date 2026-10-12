@@ -7,8 +7,10 @@ public class EstimateListModel
     public int Id { get; set; }
 
     [Required]
+    [StringLength(EstimateBuilderDefaults.NameMaxLength)]
     public string Name { get; set; } = string.Empty;
 
+    [StringLength(EstimateBuilderDefaults.DescriptionMaxLength)]
     public string? Description { get; set; }
 
     public string CreatedOn { get; set; } = string.Empty;

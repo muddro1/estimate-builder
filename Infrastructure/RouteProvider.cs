@@ -55,10 +55,6 @@ public class RouteProvider : IRouteProvider
             pattern: "estimate/updateitems",
             defaults: new { controller = "Estimate", action = "UpdateItems" });
 
-        endpointRouteBuilder.MapControllerRoute(
-            name: "EstimateDeleteList",
-            pattern: "estimate/deletelist/{id:int}",
-            defaults: new { controller = "Estimate", action = "DeleteEstimateList" });
 
         endpointRouteBuilder.MapControllerRoute(
             name: "EstimateExportExcel",
@@ -69,5 +65,15 @@ public class RouteProvider : IRouteProvider
             name: "EstimateExportPdf",
             pattern: "estimate/exportpdf/{id:int}",
             defaults: new { controller = "Estimate", action = "ExportToPdf" });
+
+        endpointRouteBuilder.MapControllerRoute(
+            name: "EstimateProductsByCategory",
+            pattern: "estimate/productsbycategory",
+            defaults: new { controller = "Estimate", action = "GetProductsByCategory" });
+
+        endpointRouteBuilder.MapControllerRoute(
+            name: "EstimateProductAttributes",
+            pattern: "estimate/productattributes",
+            defaults: new { controller = "Estimate", action = "GetProductAttributes" });
     }
 }

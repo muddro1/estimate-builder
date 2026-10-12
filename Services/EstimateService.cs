@@ -58,39 +58,72 @@ public class EstimateService : IEstimateService
         var copy = new EstimateList
         {
             CustomerId = customerId,
-            Name = original.Name + " (Copy)",
+            Name = TrimToLength(original.Name + " (Copy)", EstimateBuilderDefaults.NameMaxLength),
             Description = original.Description,
-            CreatedOnUtc = DateTime.UtcNow
+            CreatedOnUtc = DateTime.UtcNow,
+            ContactName = original.ContactName,
+            ContactEmail = original.ContactEmail,
+            ContactPhone = original.ContactPhone,
+            ContactAddress = original.ContactAddress,
+            ContactCity = original.ContactCity,
+            ContactState = original.ContactState,
+            ContactZip = original.ContactZip
         };
         await InsertEstimateListAsync(copy);
 
         var items = await GetItemsByEstimateListIdAsync(estimateListId);
-        foreach (var item in items)
+        await _estimateListItemRepository.InsertAsync(items.Select(item => new EstimateListItem
         {
-            await InsertEstimateListItemAsync(new EstimateListItem
-            {
-                EstimateListId = copy.Id,
-                ProductId = item.ProductId,
-                Quantity = item.Quantity
-            });
-        }
+            EstimateListId = copy.Id,
+            ProductId = item.ProductId,
+            Quantity = item.Quantity,
+            AttributesXml = item.AttributesXml
+        }).ToList());
     }
 
     public async Task<IList<EstimateListItem>> GetItemsByEstimateListIdAsync(int estimateListId)
     {
         return await _estimateListItemRepository.GetAllAsync(q =>
-            q.Where(i => i.EstimateListId == estimateListId));
+            q.Where(i => i.EstimateListId == estimateListId).OrderBy(i => i.Id));
     }
 
-    public async Task<EstimateListItem?> GetEstimateListItemAsync(int estimateListId, int productId)
+    public async Task<IDictionary<int, int>> GetItemCountsAsync(IList<int> estimateListIds)
     {
-        return (await _estimateListItemRepository.GetAllAsync(q =>
-            q.Where(i => i.EstimateListId == estimateListId && i.ProductId == productId))).FirstOrDefault();
+        if (!estimateListIds.Any())
+            return new Dictionary<int, int>();
+
+        var counts = await _estimateListItemRepository.Table
+            .Where(i => estimateListIds.Contains(i.EstimateListId))
+            .GroupBy(i => i.EstimateListId)
+            .Select(g => new { EstimateListId = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        return counts.ToDictionary(c => c.EstimateListId, c => c.Count);
     }
 
-    public async Task InsertEstimateListItemAsync(EstimateListItem item)
+    public async Task AddOrIncrementItemAsync(int estimateListId, int productId, int quantity, string? attributesXml)
     {
-        await _estimateListItemRepository.InsertAsync(item);
+        attributesXml = string.IsNullOrEmpty(attributesXml) ? null : attributesXml;
+        quantity = Math.Clamp(quantity, 1, EstimateBuilderDefaults.MaxQuantity);
+
+        var existing = (await GetItemsByEstimateListIdAsync(estimateListId)).FirstOrDefault(i =>
+            i.ProductId == productId &&
+            string.Equals(i.AttributesXml ?? string.Empty, attributesXml ?? string.Empty, StringComparison.Ordinal));
+
+        if (existing != null)
+        {
+            existing.Quantity = (int)Math.Min((long)existing.Quantity + quantity, EstimateBuilderDefaults.MaxQuantity);
+            await _estimateListItemRepository.UpdateAsync(existing);
+            return;
+        }
+
+        await _estimateListItemRepository.InsertAsync(new EstimateListItem
+        {
+            EstimateListId = estimateListId,
+            ProductId = productId,
+            Quantity = quantity,
+            AttributesXml = attributesXml
+        });
     }
 
     public async Task UpdateEstimateListItemAsync(EstimateListItem item)
@@ -108,4 +141,7 @@ public class EstimateService : IEstimateService
         var items = await GetItemsByEstimateListIdAsync(estimateListId);
         await _estimateListItemRepository.DeleteAsync(items.ToList());
     }
+
+    private static string TrimToLength(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..maxLength];
 }

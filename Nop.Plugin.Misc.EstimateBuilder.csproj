@@ -10,6 +10,8 @@
     <OutputPath>../output</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <!-- Folder holding the nopCommerce 4.90 assemblies; override with -p:NopRefs=<path> -->
+    <NopRefs Condition="'$(NopRefs)' == ''">../refs</NopRefs>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,49 +20,55 @@
 
   <ItemGroup>
     <Reference Include="Nop.Core">
-      <HintPath>../refs/Nop.Core.dll</HintPath>
+      <HintPath>$(NopRefs)/Nop.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Nop.Data">
-      <HintPath>../refs/Nop.Data.dll</HintPath>
+      <HintPath>$(NopRefs)/Nop.Data.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Nop.Services">
-      <HintPath>../refs/Nop.Services.dll</HintPath>
+      <HintPath>$(NopRefs)/Nop.Services.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Nop.Web.Framework">
-      <HintPath>../refs/Nop.Web.Framework.dll</HintPath>
+      <HintPath>$(NopRefs)/Nop.Web.Framework.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Nop.Web">
-      <HintPath>../refs/Nop.Web.dll</HintPath>
+      <HintPath>$(NopRefs)/Nop.Web.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="FluentMigrator">
-      <HintPath>../refs/FluentMigrator.dll</HintPath>
+      <HintPath>$(NopRefs)/FluentMigrator.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="FluentMigrator.Abstractions">
-      <HintPath>../refs/FluentMigrator.Abstractions.dll</HintPath>
+      <HintPath>$(NopRefs)/FluentMigrator.Abstractions.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="FluentMigrator.Runner.Core">
-      <HintPath>../refs/FluentMigrator.Runner.Core.dll</HintPath>
+      <HintPath>$(NopRefs)/FluentMigrator.Runner.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="linq2db">
-      <HintPath>../refs/linq2db.dll</HintPath>
+      <HintPath>$(NopRefs)/linq2db.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="ClosedXML">
-      <HintPath>../refs/ClosedXML.dll</HintPath>
+      <HintPath>$(NopRefs)/ClosedXML.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="iTextSharp.LGPLv2.Core">
-      <HintPath>../refs/iTextSharp.LGPLv2.Core.dll</HintPath>
+      <HintPath>$(NopRefs)/iTextSharp.LGPLv2.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Views\**\*.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Content\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

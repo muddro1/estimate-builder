@@ -13,8 +13,14 @@ public interface IEstimateService
     Task CopyEstimateListAsync(int estimateListId, int customerId);
 
     Task<IList<EstimateListItem>> GetItemsByEstimateListIdAsync(int estimateListId);
-    Task<EstimateListItem?> GetEstimateListItemAsync(int estimateListId, int productId);
-    Task InsertEstimateListItemAsync(EstimateListItem item);
+    Task<IDictionary<int, int>> GetItemCountsAsync(IList<int> estimateListIds);
+
+    /// <summary>
+    /// Adds a product configuration to an estimate, or increases the quantity of the matching line
+    /// (same product and same attributes). Quantities are capped at <see cref="EstimateBuilderDefaults.MaxQuantity"/>.
+    /// </summary>
+    Task AddOrIncrementItemAsync(int estimateListId, int productId, int quantity, string? attributesXml);
+
     Task UpdateEstimateListItemAsync(EstimateListItem item);
     Task DeleteEstimateListItemAsync(EstimateListItem item);
     Task DeleteEstimateListItemsByEstimateListIdAsync(int estimateListId);

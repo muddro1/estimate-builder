@@ -76,19 +76,22 @@
     function doAddToEstimate_@(Model.ProductId)(estimateListId, newName, newDesc) {
         var productId = @(Model.ProductId);
         var qty = document.getElementById('product_enteredQuantity_' + productId);
-        var quantity = qty ? (parseInt(qty.value) || 1) : 1;
+        var quantity = qty ? (parseInt(qty.value, 10) || 1) : 1;
 
-        var body = 'productId=' + productId + '&estimateListId=' + estimateListId + '&quantity=' + quantity;
+        // Send the product page's own form so the selected attributes (same field names as add-to-cart) come along
+        var productForm = document.getElementById('product-details-form');
+        var body = productForm ? new FormData(productForm) : new FormData();
+        body.set('productId', productId);
+        body.set('estimateListId', estimateListId);
+        body.set('quantity', quantity);
         if (estimateListId == '0') {
-            body += '&newEstimateName=' + encodeURIComponent(newName) + '&newEstimateDescription=' + encodeURIComponent(newDesc);
+            body.set('newEstimateName', newName);
+            body.set('newEstimateDescription', newDesc);
         }
 
         fetch('@Url.Action("AddToEstimate","Estimate")', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'RequestVerificationToken': '@token'
-            },
+            headers: { 'RequestVerificationToken': '@token' },
             body: body
         })
         .then(r => r.json())

@@ -1,5 +1,6 @@
 using Nop.Core;
 using Nop.Services.Plugins;
+using Nop.Services.Security;
 using Nop.Web.Framework.Events;
 using Nop.Web.Framework.Menu;
 
@@ -7,21 +8,30 @@ namespace Nop.Plugin.Misc.EstimateBuilder.Infrastructure;
 
 public class AdminMenuConsumer : BaseAdminMenuCreatedEventConsumer
 {
+    private readonly IPermissionService _permissionService;
     private readonly IWebHelper _webHelper;
+    private readonly IWorkContext _workContext;
 
-    public AdminMenuConsumer(IPluginManager<IPlugin> pluginManager, IWebHelper webHelper)
+    public AdminMenuConsumer(IPluginManager<IPlugin> pluginManager,
+        IPermissionService permissionService,
+        IWebHelper webHelper,
+        IWorkContext workContext)
         : base(pluginManager)
     {
+        _permissionService = permissionService;
         _webHelper = webHelper;
+        _workContext = workContext;
     }
 
-    protected override string PluginSystemName => "Misc.EstimateBuilder";
+    protected override string PluginSystemName => EstimateBuilderDefaults.SystemName;
 
     // No AfterMenuSystemName = append at end of root
     protected override string AfterMenuSystemName => null!;
 
-    // Always allow - we handle auth in the controller
-    protected override Task<bool> CheckAccessAsync() => Task.FromResult(true);
+    // Same rule as AdminEstimateController: order viewers only, never vendors
+    protected override async Task<bool> CheckAccessAsync() =>
+        await _workContext.GetCurrentVendorAsync() == null
+        && await _permissionService.AuthorizeAsync(StandardPermission.Orders.ORDERS_VIEW);
 
     protected override Task<AdminMenuItem> GetAdminMenuItemAsync(IPlugin plugin)
     {

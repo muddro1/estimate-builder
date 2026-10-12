@@ -13,6 +13,8 @@ public class NopStartup : INopStartup
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IEstimateService, EstimateService>();
+        services.AddScoped<IEstimateCatalogService, EstimateCatalogService>();
+        services.AddScoped<IEstimateDocumentService, EstimateDocumentService>();
     }
 
     public void Configure(IApplicationBuilder application)

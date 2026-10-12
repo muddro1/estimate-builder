@@ -17,6 +17,9 @@ public class AdminEstimateListsModel
 {
     public IList<AdminEstimateRowModel> Estimates { get; set; } = new List<AdminEstimateRowModel>();
     public string? SearchTerm { get; set; }
+    public int PageIndex { get; set; }
+    public int TotalPages { get; set; }
+    public int TotalCount { get; set; }
 }
 
 public class AdminCreateEstimateModel
@@ -26,20 +29,30 @@ public class AdminCreateEstimateModel
 
     // Existing customer
     public int CustomerId { get; set; }
-    public string CustomerSearch { get; set; } = string.Empty;
+    public string? CustomerSearch { get; set; }
 
     // Contact info (for non-customer)
+    [StringLength(500)]
     public string? ContactName { get; set; }
+    [StringLength(500)]
     public string? ContactEmail { get; set; }
+    [StringLength(100)]
     public string? ContactPhone { get; set; }
+    [StringLength(500)]
     public string? ContactAddress { get; set; }
+    [StringLength(200)]
     public string? ContactCity { get; set; }
+    [StringLength(200)]
     public string? ContactState { get; set; }
+    [StringLength(50)]
     public string? ContactZip { get; set; }
 
     // Estimate info
     [Required]
+    [StringLength(EstimateBuilderDefaults.NameMaxLength)]
     public string Name { get; set; } = string.Empty;
+
+    [StringLength(EstimateBuilderDefaults.DescriptionMaxLength)]
     public string? Description { get; set; }
 }
 
@@ -51,12 +64,19 @@ public class AdminEstimateDetailsModel : EstimateItemsModel
     public string CustomerDisplay { get; set; } = string.Empty;
 
     // Contact info (if no customer)
+    [StringLength(500)]
     public string? ContactName { get; set; }
+    [StringLength(500)]
     public string? ContactEmail { get; set; }
+    [StringLength(100)]
     public string? ContactPhone { get; set; }
+    [StringLength(500)]
     public string? ContactAddress { get; set; }
+    [StringLength(200)]
     public string? ContactCity { get; set; }
+    [StringLength(200)]
     public string? ContactState { get; set; }
+    [StringLength(50)]
     public string? ContactZip { get; set; }
 
     // For assigning a customer to a contact estimate

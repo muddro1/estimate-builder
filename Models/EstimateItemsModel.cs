@@ -30,5 +30,6 @@ public class EstimateItemsModel
     public string? Description { get; set; }
     public IList<EstimateItemModel> Items { get; set; } = new List<EstimateItemModel>();
     public string SubTotalFormatted { get; set; } = string.Empty;
+    public bool ShowPrices { get; set; } = true;
     public IList<CategorySelectItem> Categories { get; set; } = new List<CategorySelectItem>();
 }

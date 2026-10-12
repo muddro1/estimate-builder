@@ -52,7 +52,7 @@
                             style="padding:6px 10px; border:1px solid #ccc; min-width:240px; color:#333; font-size:14px; background:#fff;">
                         <option value="">-- Select Product --</option>
                     </select>
-                    <input type="number" id="add-product-qty" value="1" min="1"
+                    <input type="number" id="add-product-qty" value="1" min="1" max="@EstimateBuilderDefaults.MaxQuantity"
                            style="width:60px; padding:6px; border:1px solid #ccc; text-align:center; font-size:14px; color:#333; background:#fff;" />
                     <button type="button" onclick="addProductFromDetail()"
                             style="background:#3a7bbf; color:#fff; padding:6px 16px; border:none; cursor:pointer; border-radius:3px; font-size:14px;">
@@ -83,9 +83,15 @@
                             <th style="padding:10px; border:1px solid #ddd; text-align:left;">SKU</th>
                             <th style="padding:10px; border:1px solid #ddd; text-align:left;">Image</th>
                             <th style="padding:10px; border:1px solid #ddd; text-align:left;">Product(s)</th>
-                            <th style="padding:10px; border:1px solid #ddd; text-align:right;">Price</th>
+                            @if (Model.ShowPrices)
+                            {
+                                <th style="padding:10px; border:1px solid #ddd; text-align:right;">Price</th>
+                            }
                             <th style="padding:10px; border:1px solid #ddd; text-align:center;">Qty.</th>
-                            <th style="padding:10px; border:1px solid #ddd; text-align:right;">Total</th>
+                            @if (Model.ShowPrices)
+                            {
+                                <th style="padding:10px; border:1px solid #ddd; text-align:right;">Total</th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -111,20 +117,29 @@
                                         <div style="font-weight:normal; font-size:12px; color:#666; margin-top:3px;">@Model.Items[i].AttributesFormatted</div>
                                     }
                                 </td>
-                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:right;">@Model.Items[i].PriceFormatted</td>
+                                @if (Model.ShowPrices)
+                                {
+                                    <td style="padding:8px 10px; border:1px solid #ddd; text-align:right;">@Model.Items[i].PriceFormatted</td>
+                                }
                                 <td style="padding:8px 10px; border:1px solid #ddd; text-align:center;">
                                     <input type="number" name="Items[@i].Quantity" value="@Model.Items[i].Quantity" min="1" style="width:60px; text-align:center; border:1px solid #ccc; padding:4px; background:#fff; color:#333; font-size:14px;" />
                                 </td>
-                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:right;">@Model.Items[i].TotalFormatted</td>
+                                @if (Model.ShowPrices)
+                                {
+                                    <td style="padding:8px 10px; border:1px solid #ddd; text-align:right;">@Model.Items[i].TotalFormatted</td>
+                                }
                             </tr>
                         }
                     </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="6" style="padding:8px 10px; border:1px solid #ddd; text-align:right; font-weight:bold;">Sub Total</td>
-                            <td style="padding:8px 10px; border:1px solid #ddd; text-align:right; font-weight:bold;">@Model.SubTotalFormatted</td>
-                        </tr>
-                    </tfoot>
+                    @if (Model.ShowPrices)
+                    {
+                        <tfoot>
+                            <tr>
+                                <td colspan="6" style="padding:8px 10px; border:1px solid #ddd; text-align:right; font-weight:bold;">Sub Total</td>
+                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:right; font-weight:bold;">@Model.SubTotalFormatted</td>
+                            </tr>
+                        </tfoot>
+                    }
                 </table>
 
                 <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:16px;">
@@ -156,10 +171,17 @@
         <form id="estimate-addtocart-form" action="@Url.Action("AddToCart","Estimate", new { id = Model.EstimateListId })" method="post" style="display:none;">
             @Html.AntiForgeryToken()
         </form>
-        <form id="estimate-deletelist-form" action="@Url.Action("DeleteEstimateList","Estimate", new { id = Model.EstimateListId })" method="post" style="display:none;">
+        <form id="estimate-deletelist-form" action="@Url.Action("Delete","Estimate", new { id = Model.EstimateListId })" method="post" style="display:none;">
             @Html.AntiForgeryToken()
         </form>
 
+        <style>
+            .estimate-attr-group { margin-top:8px; display:flex; flex-direction:column; gap:10px; }
+            .estimate-attr-label { font-size:13px; font-weight:bold; color:#333; }
+            .estimate-attr-input { padding:5px; border:1px solid #ccc; font-size:13px; color:#333; background:#fff; margin-top:3px; min-width:220px; }
+            .estimate-attr-option { margin-right:12px; font-size:13px; }
+        </style>
+        <script src="@Url.Content(EstimateBuilderDefaults.ScriptPath)"></script>
         <script>
             function estimateAddToCart() {
                 document.getElementById('estimate-addtocart-form').submit();
@@ -180,7 +202,7 @@
                     prodSel.innerHTML = '<option value="">-- Select Product --</option>';
                     return;
                 }
-                fetch('@Url.Action("GetProductsByCategory", "Estimate")?categoryId=' + catId)
+                fetch('@Url.Action("GetProductsByCategory", "Estimate")?categoryId=' + encodeURIComponent(catId))
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         prodSel.innerHTML = '<option value="">-- Select Product --</option>';
@@ -200,72 +222,24 @@
                 panel.innerHTML = '';
                 panel.style.display = 'none';
                 if (!productId) return;
-                fetch('@Url.Action("GetProductAttributes", "Estimate")?productId=' + productId)
+                fetch('@Url.Action("GetProductAttributes", "Estimate")?productId=' + encodeURIComponent(productId))
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (!data.hasAttributes) return;
-                        var html = '<strong style="font-size:13px;">Configure Options:</strong><div style="margin-top:8px; display:flex; flex-direction:column; gap:10px;">';
-                        data.attributes.forEach(function(attr) {
-                            html += '<div>';
-                            html += '<label style="font-size:13px; font-weight:bold; color:#333;">' + attr.name + (attr.isRequired ? ' <span style="color:red">*</span>' : '') + '</label><br/>';
-                            var ct = attr.controlType;
-                            if (ct === 1) { // DropdownList
-                                html += '<select data-attr-mapping="' + attr.mappingId + '" style="padding:5px; border:1px solid #ccc; font-size:13px; color:#333; background:#fff; margin-top:3px;">';
-                                if (!attr.isRequired) html += '<option value="">-- None --</option>';
-                                attr.values.forEach(function(v) {
-                                    html += '<option value="' + v.id + '"' + (v.isPreSelected ? ' selected' : '') + '>' + v.name + '</option>';
-                                });
-                                html += '</select>';
-                            } else if (ct === 2 || ct === 40) { // RadioList / ColorSquares
-                                attr.values.forEach(function(v) {
-                                    var swatch = (ct === 40 && v.colorSquaresRgb) ? '<span style="display:inline-block;width:14px;height:14px;background:' + v.colorSquaresRgb + ';border:1px solid #999;margin-right:4px;vertical-align:middle;border-radius:2px;"></span>' : '';
-                                    html += '<label style="margin-right:12px; font-size:13px;"><input type="radio" name="attr-' + attr.mappingId + '" data-attr-mapping="' + attr.mappingId + '" value="' + v.id + '"' + (v.isPreSelected ? ' checked' : '') + ' style="margin-right:4px;"> ' + swatch + v.name + '</label>';
-                                });
-                            } else if (ct === 3) { // Checkboxes
-                                attr.values.forEach(function(v) {
-                                    html += '<label style="margin-right:12px; font-size:13px;"><input type="checkbox" data-attr-mapping="' + attr.mappingId + '" value="' + v.id + '"' + (v.isPreSelected ? ' checked' : '') + ' style="margin-right:4px;"> ' + v.name + '</label>';
-                                });
-                            } else if (ct === 10) { // Multiline
-                                html += '<textarea data-attr-mapping="' + attr.mappingId + '" rows="2" style="width:300px; padding:5px; border:1px solid #ccc; font-size:13px; color:#333; margin-top:3px;">' + attr.defaultValue + '</textarea>';
-                            } else { // TextBox and others
-                                html += '<input type="text" data-attr-mapping="' + attr.mappingId + '" value="' + attr.defaultValue + '" style="padding:5px; border:1px solid #ccc; font-size:13px; color:#333; width:220px; margin-top:3px;" />';
-                            }
-                            html += '</div>';
-                        });
-                        html += '</div>';
-                        panel.innerHTML = html;
-                        panel.style.display = 'block';
+                        EstimateBuilder.renderAttributes(panel, data.attributes, {
+                            group: 'estimate-attr-group',
+                            label: 'estimate-attr-label',
+                            select: 'estimate-attr-input',
+                            input: 'estimate-attr-input',
+                            textarea: 'estimate-attr-input',
+                            option: 'estimate-attr-option'
+                        }, false);
                     });
-            }
-
-            function collectAttributes() {
-                var panel = document.getElementById('add-attr-panel');
-                if (panel.style.display === 'none') return null;
-                var selections = {};
-                panel.querySelectorAll('[data-attr-mapping]').forEach(function(el) {
-                    var mid = el.getAttribute('data-attr-mapping');
-                    if (!selections[mid]) selections[mid] = [];
-                    if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
-                        if (el.value) selections[mid].push(el.value);
-                    } else if (el.type === 'radio' && el.checked) {
-                        selections[mid].push(el.value);
-                    } else if (el.type === 'checkbox' && el.checked) {
-                        selections[mid].push(el.value);
-                    } else if (el.type === 'text') {
-                        if (el.value) selections[mid].push(el.value);
-                    }
-                });
-                var result = [];
-                Object.keys(selections).forEach(function(mid) {
-                    if (selections[mid].length > 0)
-                        result.push({ mappingId: parseInt(mid), values: selections[mid] });
-                });
-                return result.length > 0 ? JSON.stringify(result) : null;
             }
 
             function addProductFromDetail() {
                 var productId = document.getElementById('add-product-select').value;
-                var qty = parseInt(document.getElementById('add-product-qty').value) || 1;
+                var qty = parseInt(document.getElementById('add-product-qty').value, 10) || 1;
                 var msg = document.getElementById('add-product-msg');
                 if (!productId) {
                     msg.textContent = 'Please select a product.';
@@ -274,16 +248,18 @@
                     return;
                 }
                 var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-                var attrJson = collectAttributes();
-                var body = 'productId=' + productId + '&estimateListId=@(Model.EstimateListId)&quantity=' + qty;
-                if (attrJson) body += '&attributesJson=' + encodeURIComponent(attrJson);
+                var params = new URLSearchParams();
+                params.append('productId', productId);
+                params.append('estimateListId', '@(Model.EstimateListId)');
+                params.append('quantity', qty);
+                EstimateBuilder.appendAttributes(document.getElementById('add-attr-panel'), params);
                 fetch('@Url.Action("AddToEstimate", "Estimate")', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'RequestVerificationToken': token
                     },
-                    body: body
+                    body: params.toString()
                 })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
