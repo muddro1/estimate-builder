@@ -140,10 +140,11 @@ public class EstimateCatalogService : IEstimateCatalogService
             pageSize: maxResults,
             orderBy: ProductSortingEnum.NameAsc);
 
-        // nopCommerce's standard search only matches a SKU when the whole SKU is typed; add partial matches
+        // nopCommerce's standard search only matches a SKU when the whole SKU is typed, and a search provider
+        // plugin (such as BetterSearch) may match whole words only; add partial name and SKU matches
         if (hasKeywords)
             products = products
-                .Concat(await SearchByPartialSkuAsync(keywords!, categoryIds, storeId, maxResults))
+                .Concat(await SearchByPartialMatchAsync(keywords!, categoryIds, storeId, maxResults))
                 .DistinctBy(p => p.Id)
                 .OrderBy(p => p.Name)
                 .Take(maxResults);
@@ -159,19 +160,33 @@ public class EstimateCatalogService : IEstimateCatalogService
     }
 
     /// <summary>
-    /// Products whose SKU, manufacturer part number or attribute-combination SKU contains the keywords,
-    /// filtered the way SearchProductsAsync filters: published and visible individually, plus ACL and
-    /// store mapping on the storefront (storeId > 0), and restricted to <paramref name="categoryIds"/> when given.
+    /// Products whose name contains every typed word (in any order, as part of a word), or whose SKU,
+    /// manufacturer part number or attribute-combination SKU contains the keywords. Filtered the way
+    /// SearchProductsAsync filters: published and visible individually, plus ACL and store mapping on the
+    /// storefront (storeId > 0), and restricted to <paramref name="categoryIds"/> when given.
     /// </summary>
-    private async Task<IList<Product>> SearchByPartialSkuAsync(string keywords, IList<int>? categoryIds, int storeId, int maxResults)
+    private async Task<IList<Product>> SearchByPartialMatchAsync(string keywords, IList<int>? categoryIds, int storeId, int maxResults)
     {
-        var productIds = await _productRepository.Table
-            .Where(p => !p.Deleted && p.Published && p.VisibleIndividually &&
-                        ((p.Sku != null && p.Sku.Contains(keywords)) ||
-                         (p.ManufacturerPartNumber != null && p.ManufacturerPartNumber.Contains(keywords))))
+        var baseQuery = _productRepository.Table.Where(p => !p.Deleted && p.Published && p.VisibleIndividually);
+
+        var nameQuery = baseQuery;
+        foreach (var word in keywords.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct())
+            nameQuery = nameQuery.Where(p => p.Name.Contains(word));
+
+        var nameIds = await nameQuery
+            .OrderBy(p => p.Name)
             .Select(p => p.Id)
             .Take(maxResults)
             .ToListAsync();
+
+        var skuIds = await baseQuery
+            .Where(p => (p.Sku != null && p.Sku.Contains(keywords)) ||
+                        (p.ManufacturerPartNumber != null && p.ManufacturerPartNumber.Contains(keywords)))
+            .Select(p => p.Id)
+            .Take(maxResults)
+            .ToListAsync();
+
+        var productIds = nameIds.Concat(skuIds).ToList();
 
         var combinationProductIds = await _combinationRepository.Table
             .Where(c => c.Sku != null && c.Sku.Contains(keywords))
