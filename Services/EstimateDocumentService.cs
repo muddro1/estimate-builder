@@ -223,7 +223,27 @@ public class EstimateDocumentService : IEstimateDocumentService
             ws.Cell(row, 5).Style.Fill.BackgroundColor = XLColor.FromArgb(230, 230, 230);
         }
 
+        // Size columns before adding the notes block, so a long note doesn't stretch column A
         ws.Columns().AdjustToContents();
+
+        if (!string.IsNullOrWhiteSpace(estimate.Note))
+        {
+            var noteRow = row + 2;
+            ws.Cell(noteRow, 1).Value = "Notes :";
+            ws.Cell(noteRow, 1).Style.Font.Bold = true;
+
+            var noteRange = ws.Range(noteRow + 1, 1, noteRow + 1, 5);
+            noteRange.Merge();
+            noteRange.Value = estimate.Note.Replace("\r\n", "\n");
+            noteRange.Style.Alignment.WrapText = true;
+            noteRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+
+            // Merged cells don't auto-fit their height; estimate it from line breaks and wrapping
+            var totalWidth = Enumerable.Range(1, 5).Sum(c => ws.Column(c).Width);
+            var lines = estimate.Note.Replace("\r\n", "\n").Split('\n')
+                .Sum(line => Math.Max(1, (int)Math.Ceiling(line.Length / Math.Max(1, totalWidth))));
+            ws.Row(noteRow + 1).Height = Math.Min(409, lines * 15 + 4);
+        }
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -329,6 +349,13 @@ public class EstimateDocumentService : IEstimateDocumentService
         }
 
         doc.Add(table);
+
+        if (!string.IsNullOrWhiteSpace(estimate.Note))
+        {
+            doc.Add(new Paragraph("Notes", metaLabelFont) { SpacingBefore = 16, SpacingAfter = 4 });
+            doc.Add(new Paragraph(estimate.Note.Replace("\r\n", "\n"), metaValueFont) { Leading = 14 });
+        }
+
         doc.Close();
 
         return stream.ToArray();

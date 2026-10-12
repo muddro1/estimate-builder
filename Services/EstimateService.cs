@@ -83,6 +83,7 @@ public class EstimateService : IEstimateService
             CustomerId = customerId,
             Name = TrimToLength(original.Name + " (Copy)", EstimateBuilderDefaults.NameMaxLength),
             Description = original.Description,
+            Note = original.Note,
             CreatedOnUtc = DateTime.UtcNow,
             ContactName = original.ContactName,
             ContactEmail = original.ContactEmail,

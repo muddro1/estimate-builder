@@ -19,6 +19,7 @@ public class SchemaMigration : Migration
             .WithColumn("Name").AsString(500).NotNullable()
             .WithColumn("Description").AsString(4000).Nullable()
             .WithColumn("CreatedOnUtc").AsDateTime2().NotNullable()
+            .WithColumn("Note").AsString(4000).Nullable()
             .WithColumn("ContactName").AsString(500).Nullable()
             .WithColumn("ContactEmail").AsString(500).Nullable()
             .WithColumn("ContactPhone").AsString(100).Nullable()

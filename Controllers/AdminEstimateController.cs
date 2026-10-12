@@ -206,6 +206,7 @@ public class AdminEstimateController : BasePluginController
         {
             Name = model.Name.Trim(),
             Description = model.Description?.Trim(),
+            Note = EstimateModelHelper.NormalizeNote(model.Note),
             CreatedOnUtc = DateTime.UtcNow
         };
 
@@ -252,7 +253,7 @@ public class AdminEstimateController : BasePluginController
         if (estimate == null)
             return RedirectToAction(nameof(Index));
 
-        var error = EstimateModelHelper.ValidateNameAndDescription(model.EstimateName, model.Description);
+        var error = EstimateModelHelper.ValidateNameAndDescription(model.EstimateName, model.Description, model.Note);
         if (error == null && !ModelState.IsValid)
             error = string.Join(" ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Distinct());
         if (error != null)
@@ -263,6 +264,7 @@ public class AdminEstimateController : BasePluginController
 
         estimate.Name = model.EstimateName.Trim();
         estimate.Description = model.Description?.Trim();
+        estimate.Note = EstimateModelHelper.NormalizeNote(model.Note);
         if (estimate.CustomerId == 0)
         {
             estimate.ContactName = model.ContactName?.Trim();
@@ -459,6 +461,7 @@ public class AdminEstimateController : BasePluginController
             EstimateListId = estimate.Id,
             EstimateName = estimate.Name,
             Description = estimate.Description,
+            Note = estimate.Note,
             ShowPrices = true,
             SubTotalFormatted = document.SubTotalFormatted,
             Categories = await _catalogService.GetCategoryOptionsAsync(storeId: 0),

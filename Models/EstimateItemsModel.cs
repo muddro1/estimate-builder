@@ -28,6 +28,7 @@ public class EstimateItemsModel
     public int EstimateListId { get; set; }
     public string EstimateName { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Note { get; set; }
     public IList<EstimateItemModel> Items { get; set; } = new List<EstimateItemModel>();
     public string SubTotalFormatted { get; set; } = string.Empty;
     public bool ShowPrices { get; set; } = true;

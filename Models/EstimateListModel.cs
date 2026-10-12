@@ -13,6 +13,9 @@ public class EstimateListModel
     [StringLength(EstimateBuilderDefaults.DescriptionMaxLength)]
     public string? Description { get; set; }
 
+    [StringLength(EstimateBuilderDefaults.NoteMaxLength)]
+    public string? Note { get; set; }
+
     public string CreatedOn { get; set; } = string.Empty;
 }
 

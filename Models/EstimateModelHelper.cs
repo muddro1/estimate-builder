@@ -12,7 +12,7 @@ namespace Nop.Plugin.Misc.EstimateBuilder.Models;
 public static class EstimateModelHelper
 {
     /// <returns>An error message, or null when both values are acceptable.</returns>
-    public static string? ValidateNameAndDescription(string? name, string? description)
+    public static string? ValidateNameAndDescription(string? name, string? description, string? note = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             return "Estimate name is required.";
@@ -20,9 +20,15 @@ public static class EstimateModelHelper
             return $"Estimate name can't be longer than {EstimateBuilderDefaults.NameMaxLength} characters.";
         if (description?.Trim().Length > EstimateBuilderDefaults.DescriptionMaxLength)
             return $"Description can't be longer than {EstimateBuilderDefaults.DescriptionMaxLength} characters.";
+        if (note?.Trim().Length > EstimateBuilderDefaults.NoteMaxLength)
+            return $"Notes can't be longer than {EstimateBuilderDefaults.NoteMaxLength} characters.";
 
         return null;
     }
+
+    /// <summary>Blank notes are stored as null so exports can skip the notes block.</summary>
+    public static string? NormalizeNote(string? note) =>
+        string.IsNullOrWhiteSpace(note) ? null : note.Trim();
 
     /// <summary>
     /// Applies posted quantity changes and removals to the lines of one estimate.

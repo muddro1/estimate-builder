@@ -11,6 +11,7 @@ public static class EstimateBuilderDefaults
 
     public const int NameMaxLength = 500;
     public const int DescriptionMaxLength = 4000;
+    public const int NoteMaxLength = 4000;
 
     /// <summary>Upper bound for a single line's quantity, so repeated adds can't overflow.</summary>
     public const int MaxQuantity = 100_000;

@@ -115,6 +115,7 @@ public class EstimateController : BasePluginController
             CustomerId = customer.Id,
             Name = model.Name.Trim(),
             Description = model.Description?.Trim(),
+            Note = EstimateModelHelper.NormalizeNote(model.Note),
             CreatedOnUtc = DateTime.UtcNow
         });
 
@@ -132,7 +133,8 @@ public class EstimateController : BasePluginController
         {
             Id = estimate.Id,
             Name = estimate.Name,
-            Description = estimate.Description
+            Description = estimate.Description,
+            Note = estimate.Note
         });
     }
 
@@ -148,6 +150,7 @@ public class EstimateController : BasePluginController
 
         estimate.Name = model.Name.Trim();
         estimate.Description = model.Description?.Trim();
+        estimate.Note = EstimateModelHelper.NormalizeNote(model.Note);
         await _estimateService.UpdateEstimateListAsync(estimate);
 
         return RedirectToAction(nameof(Index));
@@ -190,7 +193,7 @@ public class EstimateController : BasePluginController
         if (estimate == null)
             return RedirectToAction(nameof(Index));
 
-        var nameError = EstimateModelHelper.ValidateNameAndDescription(model.EstimateName, model.Description);
+        var nameError = EstimateModelHelper.ValidateNameAndDescription(model.EstimateName, model.Description, model.Note);
         if (nameError != null)
         {
             _notificationService.ErrorNotification(nameError);
@@ -199,6 +202,7 @@ public class EstimateController : BasePluginController
 
         estimate.Name = model.EstimateName.Trim();
         estimate.Description = model.Description?.Trim();
+        estimate.Note = EstimateModelHelper.NormalizeNote(model.Note);
         await _estimateService.UpdateEstimateListAsync(estimate);
 
         await EstimateModelHelper.ApplyItemChangesAsync(_estimateService, estimate.Id, model.Items, model.RemoveItemId);
@@ -375,6 +379,7 @@ public class EstimateController : BasePluginController
             EstimateListId = estimate.Id,
             EstimateName = estimate.Name,
             Description = estimate.Description,
+            Note = estimate.Note,
             ShowPrices = document.ShowPrices,
             SubTotalFormatted = document.SubTotalFormatted,
             Categories = await _catalogService.GetCategoryOptionsAsync(store.Id)

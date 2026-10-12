@@ -54,6 +54,9 @@ public class AdminCreateEstimateModel
 
     [StringLength(EstimateBuilderDefaults.DescriptionMaxLength)]
     public string? Description { get; set; }
+
+    [StringLength(EstimateBuilderDefaults.NoteMaxLength)]
+    public string? Note { get; set; }
 }
 
 public class AdminEstimateDetailsModel : EstimateItemsModel

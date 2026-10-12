@@ -47,6 +47,15 @@
                     </div>
                 </div>
 
+                <div style="display:flex; margin-bottom:20px; align-items:flex-start;">
+                    <label style="width:200px; font-weight:bold; padding-top:6px;">Notes:</label>
+                    <div style="flex:1; max-width:600px;">
+                        <textarea asp-for="Note" rows="4" style="width:100%; padding:6px; border:1px solid #ccc; background:#fff; color:#333; font-size:14px;"></textarea>
+                        <div style="font-size:12px; color:#777; margin-top:3px;">Printed under the totals on the PDF and Excel exports.</div>
+                        <span asp-validation-for="Note" class="field-validation-error"></span>
+                    </div>
+                </div>
+
                 <div style="text-align:center;">
                     <button type="submit" class="button-1" style="background:#555; color:#fff; padding:8px 24px; border:none; cursor:pointer; text-transform:uppercase; font-weight:bold;">
                         SAVE

@@ -9,6 +9,9 @@ public class EstimateList : BaseEntity
     public string? Description { get; set; }
     public DateTime CreatedOnUtc { get; set; }
 
+    /// <summary>Free text printed under the totals on the PDF and Excel exports</summary>
+    public string? Note { get; set; }
+
     // Contact info for admin-created estimates not tied to a registered customer
     public string? ContactName { get; set; }
     public string? ContactEmail { get; set; }
