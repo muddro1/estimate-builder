@@ -141,13 +141,35 @@ public class EstimateCatalogService : IEstimateCatalogService
             orderBy: ProductSortingEnum.NameAsc);
 
         // nopCommerce's standard search only matches a SKU when the whole SKU is typed, and a search provider
-        // plugin (such as BetterSearch) may match whole words only; add partial name and SKU matches
+        // plugin (such as BetterSearch) matches whole words, fuzzily. Add literal partial name/SKU matches and
+        // rank them first, so a provider's many loose matches for a short term can't push them past the cap.
         if (hasKeywords)
-            products = products
-                .Concat(await SearchByPartialMatchAsync(keywords!, categoryIds, storeId, maxResults))
+        {
+            var literal = await SearchByPartialMatchAsync(keywords!, categoryIds, storeId, maxResults);
+            var literalIds = literal.Select(p => p.Id).ToHashSet();
+            var term = keywords!.ToLowerInvariant();
+
+            var firstWord = term.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? term;
+
+            // 0: name or SKU starts with the text, 1: a word in the name starts with it ("Duty Holster"),
+            // 2: other literal matches ("Alcohol"), 3: provider-only (fuzzy) matches
+            int Rank(Product p)
+            {
+                var name = (p.Name ?? string.Empty).ToLowerInvariant();
+                if (name.StartsWith(term) || (p.Sku ?? string.Empty).ToLowerInvariant().StartsWith(term))
+                    return 0;
+                if (name.Contains(" " + firstWord))
+                    return 1;
+                return literalIds.Contains(p.Id) ? 2 : 3;
+            }
+
+            products = literal
+                .Concat(products)
                 .DistinctBy(p => p.Id)
-                .OrderBy(p => p.Name)
+                .OrderBy(Rank)
+                .ThenBy(p => p.Name)
                 .Take(maxResults);
+        }
 
         var productList = products.ToList();
         var excludedProducts = await GetExcludedProductIdsAsync(productList.Select(p => p.Id).ToArray());
@@ -169,19 +191,27 @@ public class EstimateCatalogService : IEstimateCatalogService
     {
         var baseQuery = _productRepository.Table.Where(p => !p.Deleted && p.Published && p.VisibleIndividually);
 
-        var nameQuery = baseQuery;
-        foreach (var word in keywords.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct())
-            nameQuery = nameQuery.Where(p => p.Name.Contains(word));
+        // Lower-case both sides: on case-sensitive databases (e.g. PostgreSQL) "hol" would otherwise miss "Holster"
+        var term = keywords.ToLowerInvariant();
+        var words = term.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().ToList();
 
+        var nameQuery = baseQuery;
+        foreach (var word in words)
+            nameQuery = nameQuery.Where(p => p.Name.ToLower().Contains(word));
+
+        // Names starting with the first word, then names with a word starting with it, so they survive the cap
+        var firstWord = words.FirstOrDefault() ?? term;
+        var wordStart = " " + firstWord;
         var nameIds = await nameQuery
-            .OrderBy(p => p.Name)
+            .OrderBy(p => p.Name.ToLower().StartsWith(firstWord) ? 0 : p.Name.ToLower().Contains(wordStart) ? 1 : 2)
+            .ThenBy(p => p.Name)
             .Select(p => p.Id)
             .Take(maxResults)
             .ToListAsync();
 
         var skuIds = await baseQuery
-            .Where(p => (p.Sku != null && p.Sku.Contains(keywords)) ||
-                        (p.ManufacturerPartNumber != null && p.ManufacturerPartNumber.Contains(keywords)))
+            .Where(p => (p.Sku != null && p.Sku.ToLower().Contains(term)) ||
+                        (p.ManufacturerPartNumber != null && p.ManufacturerPartNumber.ToLower().Contains(term)))
             .Select(p => p.Id)
             .Take(maxResults)
             .ToListAsync();
@@ -189,7 +219,7 @@ public class EstimateCatalogService : IEstimateCatalogService
         var productIds = nameIds.Concat(skuIds).ToList();
 
         var combinationProductIds = await _combinationRepository.Table
-            .Where(c => c.Sku != null && c.Sku.Contains(keywords))
+            .Where(c => c.Sku != null && c.Sku.ToLower().Contains(term))
             .Select(c => c.ProductId)
             .Distinct()
             .Take(maxResults)
