@@ -29,27 +29,62 @@ public class EstimateService : IEstimateService
 
     public async Task<IPagedList<EstimateList>> SearchEstimateListsAsync(string? searchTerm, int pageIndex, int pageSize)
     {
-        var term = searchTerm?.Trim();
-
-        // Search and paging run in the database; the owner's name/email come from a left join to Customer
+        // Search and paging run in the database; the owner's details come from a left join to Customer
         var query =
             from e in _estimateListRepository.Table
             join c in _customerRepository.Table on e.CustomerId equals c.Id into owners
             from c in owners.DefaultIfEmpty()
-            where string.IsNullOrEmpty(term)
-                  || e.Name.Contains(term)
-                  || (e.ContactName != null && e.ContactName.Contains(term))
-                  || (e.ContactCompany != null && e.ContactCompany.Contains(term))
-                  || (e.ContactEmail != null && e.ContactEmail.Contains(term))
-                  || (c != null && (
-                      (c.Email != null && c.Email.Contains(term))
-                      || (c.FirstName != null && c.FirstName.Contains(term))
-                      || (c.LastName != null && c.LastName.Contains(term))
-                      || ((c.FirstName ?? "") + " " + (c.LastName ?? "")).Contains(term)))
-            orderby e.CreatedOnUtc descending, e.Id descending
-            select e;
+            select new { e, c };
 
-        return await query.ToPagedListAsync(pageIndex, pageSize);
+        // Every word must match at least one field, in any order. Both sides are lower-cased so the search
+        // is case-insensitive on every database, including case-sensitive ones such as PostgreSQL.
+        var words = (searchTerm ?? string.Empty).ToLowerInvariant()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct();
+
+        foreach (var word in words)
+        {
+            // "#1042" means estimate number 1042 only; a bare number also matches text (a ZIP, a phone...)
+            if (word.StartsWith('#'))
+            {
+                var exactId = int.TryParse(word[1..], out var parsedId) ? parsedId : -1;
+                query = query.Where(x => x.e.Id == exactId);
+                continue;
+            }
+
+            var w = word;
+            var id = int.TryParse(w, out var numericId) ? numericId : -1;
+            // Phone numbers match on digits alone, so "5551234" finds "(555) 123-4567"; words with fewer than
+            // 3 digits skip the phone check (the placeholder below never occurs in a phone number)
+            var digits = new string(w.Where(char.IsDigit).ToArray());
+            var phoneDigits = digits.Length >= 3 ? digits : "\u0001";
+
+            query = query.Where(x =>
+                x.e.Id == id
+                || x.e.Name.ToLower().Contains(w)
+                || (x.e.ContactName != null && x.e.ContactName.ToLower().Contains(w))
+                || (x.e.ContactCompany != null && x.e.ContactCompany.ToLower().Contains(w))
+                || (x.e.ContactEmail != null && x.e.ContactEmail.ToLower().Contains(w))
+                || (x.e.ContactCity != null && x.e.ContactCity.ToLower().Contains(w))
+                || (x.e.ContactPhone != null && x.e.ContactPhone
+                    .Replace("-", "").Replace(" ", "").Replace("(", "").Replace(")", "").Replace(".", "").Replace("+", "")
+                    .Contains(phoneDigits))
+                || (x.c != null && (
+                    (x.c.Email != null && x.c.Email.ToLower().Contains(w))
+                    || (x.c.FirstName != null && x.c.FirstName.ToLower().Contains(w))
+                    || (x.c.LastName != null && x.c.LastName.ToLower().Contains(w))
+                    || (x.c.Company != null && x.c.Company.ToLower().Contains(w))
+                    || (x.c.City != null && x.c.City.ToLower().Contains(w))
+                    || (x.c.Phone != null && x.c.Phone
+                        .Replace("-", "").Replace(" ", "").Replace("(", "").Replace(")", "").Replace(".", "").Replace("+", "")
+                        .Contains(phoneDigits)))));
+        }
+
+        return await query
+            .OrderByDescending(x => x.e.CreatedOnUtc)
+            .ThenByDescending(x => x.e.Id)
+            .Select(x => x.e)
+            .ToPagedListAsync(pageIndex, pageSize);
     }
 
     public async Task<EstimateList?> GetEstimateListByIdAsync(int id)

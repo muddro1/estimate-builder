@@ -8,7 +8,9 @@ public interface IEstimateService
     Task<IList<EstimateList>> GetEstimateListsByCustomerIdAsync(int customerId);
 
     /// <summary>
-    /// Newest first, filtered by estimate name, contact name/email or owner name/email.
+    /// Newest first. Every word of <paramref name="searchTerm"/> must match the estimate number, name, or a
+    /// contact/owner name, company, email, city or phone (phones compared on digits); "#123" matches
+    /// estimate 123 only. Case-insensitive.
     /// </summary>
     Task<IPagedList<EstimateList>> SearchEstimateListsAsync(string? searchTerm, int pageIndex, int pageSize);
     Task<EstimateList?> GetEstimateListByIdAsync(int id);
