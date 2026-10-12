@@ -61,7 +61,7 @@
                     </select>
                     <input type="number" id="add-product-qty" value="1" min="1" max="@EstimateBuilderDefaults.MaxQuantity"
                            style="width:60px; padding:6px; border:1px solid #ccc; text-align:center; font-size:14px; color:#333; background:#fff;" />
-                    <button type="button" onclick="addProductFromDetail()"
+                    <button type="button" onclick="addProductFromDetail(this)"
                             style="background:#3a7bbf; color:#fff; padding:6px 16px; border:none; cursor:pointer; border-radius:3px; font-size:14px;">
                         + Add
                     </button>
@@ -107,8 +107,11 @@
                             <tr>
                                 <input type="hidden" name="Items[@i].Id" value="@Model.Items[i].Id" />
                                 <input type="hidden" name="Items[@i].ProductId" value="@Model.Items[i].ProductId" />
-                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:center;">
-                                    <input type="checkbox" name="Items[@i].Remove" value="true" />
+                                <td style="padding:8px 10px; border:1px solid #ddd; text-align:center; white-space:nowrap;">
+                                    <input type="checkbox" name="Items[@i].Remove" value="true" title="Select to remove when you click Update" />
+                                    <button type="submit" name="RemoveItemId" value="@Model.Items[i].Id" title="Delete this item"
+                                            onclick="return confirm('Remove this item from the estimate?')"
+                                            style="background:none; border:none; cursor:pointer; color:#c0392b; font-size:16px; padding:0 0 0 6px;">&#128465;</button>
                                 </td>
                                 <td style="padding:8px 10px; border:1px solid #ddd;">@Model.Items[i].Sku</td>
                                 <td style="padding:8px 10px; border:1px solid #ddd;">
@@ -231,7 +234,7 @@
                     });
             }
 
-            function addProductFromDetail() {
+            function addProductFromDetail(button) {
                 var productId = document.getElementById('add-product-select').value;
                 var qty = parseInt(document.getElementById('add-product-qty').value, 10) || 1;
                 var msg = document.getElementById('add-product-msg');
@@ -247,6 +250,7 @@
                 params.append('estimateListId', '@(Model.EstimateListId)');
                 params.append('quantity', qty);
                 EstimateBuilder.appendAttributes(document.getElementById('add-attr-panel'), params);
+                button.disabled = true;
                 fetch('@Url.Action("AddToEstimate", "Estimate")', {
                     method: 'POST',
                     headers: {
@@ -262,7 +266,15 @@
                     msg.style.display = 'block';
                     if (data.success) {
                         setTimeout(function() { location.reload(); }, 800);
+                    } else {
+                        button.disabled = false;
                     }
+                })
+                .catch(function() {
+                    msg.textContent = 'Something went wrong. Please try again.';
+                    msg.style.color = '#c0392b';
+                    msg.style.display = 'block';
+                    button.disabled = false;
                 });
             }
         </script>

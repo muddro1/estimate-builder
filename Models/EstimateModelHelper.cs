@@ -28,7 +28,9 @@ public static class EstimateModelHelper
     /// Applies posted quantity changes and removals to the lines of one estimate.
     /// Posted ids that don't belong to the estimate are ignored.
     /// </summary>
-    public static async Task ApplyItemChangesAsync(IEstimateService estimateService, int estimateListId, IList<EstimateItemModel> postedItems)
+    /// <param name="removeItemId">Line removed by its row's delete button, or 0</param>
+    public static async Task ApplyItemChangesAsync(IEstimateService estimateService, int estimateListId,
+        IList<EstimateItemModel> postedItems, int removeItemId = 0)
     {
         var items = (await estimateService.GetItemsByEstimateListIdAsync(estimateListId)).ToDictionary(i => i.Id);
 
@@ -37,7 +39,7 @@ public static class EstimateModelHelper
             if (!items.TryGetValue(posted.Id, out var item))
                 continue;
 
-            if (posted.Remove)
+            if (posted.Remove || posted.Id == removeItemId)
             {
                 await estimateService.DeleteEstimateListItemAsync(item);
                 continue;

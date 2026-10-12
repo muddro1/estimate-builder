@@ -14,7 +14,7 @@
             }
             <option value="0">+ Add to New Estimate</option>
         </select>
-        <button type="button" onclick="addToEstimate_@(Model.ProductId)()"
+        <button type="button" id="estimate-add-button-@(Model.ProductId)" onclick="addToEstimate_@(Model.ProductId)()"
                 style="background:#3a7bbf; color:#fff; padding:6px 14px; border:none; cursor:pointer; border-radius:3px; font-size:14px;">
             Add
         </button>
@@ -89,12 +89,16 @@
             body.set('newEstimateDescription', newDesc);
         }
 
+        var addButton = document.getElementById('estimate-add-button-@(Model.ProductId)');
+        addButton.disabled = true;
         fetch('@Url.Action("AddToEstimate","Estimate")', {
             method: 'POST',
             headers: { 'RequestVerificationToken': '@token' },
             body: body
         })
         .then(r => r.json())
+        .finally(() => { addButton.disabled = false; })
+        .catch(() => ({ success: false, message: 'Something went wrong. Please try again.' }))
         .then(data => {
             showResult_@(Model.ProductId)(data.message);
             if (data.success && estimateListId == '0' && data.estimateId) {

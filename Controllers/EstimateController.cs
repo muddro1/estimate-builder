@@ -201,7 +201,7 @@ public class EstimateController : BasePluginController
         estimate.Description = model.Description?.Trim();
         await _estimateService.UpdateEstimateListAsync(estimate);
 
-        await EstimateModelHelper.ApplyItemChangesAsync(_estimateService, estimate.Id, model.Items);
+        await EstimateModelHelper.ApplyItemChangesAsync(_estimateService, estimate.Id, model.Items, model.RemoveItemId);
 
         return RedirectToAction(nameof(Details), new { id = estimate.Id });
     }

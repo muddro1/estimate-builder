@@ -141,60 +141,37 @@ public class AdminEstimateController : BasePluginController
         if (!await CanViewAsync())
             return AccessDeniedView();
 
-        var all = await _estimateService.GetAllEstimateListsAsync();
-        var customerIds = all.Where(e => e.CustomerId > 0).Select(e => e.CustomerId).Distinct().ToArray();
+        var estimates = await _estimateService.SearchEstimateListsAsync(searchTerm, Math.Max(page, 1) - 1, PageSize);
+
+        // Only the rows on this page are looked up
+        var customerIds = estimates.Where(e => e.CustomerId > 0).Select(e => e.CustomerId).Distinct().ToArray();
         var customers = (await _customerService.GetCustomersByIdsAsync(customerIds)).ToDictionary(c => c.Id);
-
-        var rows = new List<(EstimateList Estimate, string Owner, string OwnerType)>();
-        foreach (var e in all)
-        {
-            string ownerDisplay, ownerType;
-            if (e.CustomerId > 0)
-            {
-                ownerDisplay = customers.TryGetValue(e.CustomerId, out var customer)
-                    ? FormatCustomer(customer)
-                    : $"Customer #{e.CustomerId}";
-                ownerType = "Customer";
-            }
-            else
-            {
-                ownerDisplay = e.ContactName ?? e.ContactEmail ?? "Unknown Contact";
-                ownerType = "Contact";
-            }
-
-            if (!string.IsNullOrWhiteSpace(searchTerm) &&
-                !ownerDisplay.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) &&
-                !e.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) &&
-                !(e.ContactEmail?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
-                continue;
-
-            rows.Add((e, ownerDisplay, ownerType));
-        }
-
-        var totalPages = Math.Max(1, (int)Math.Ceiling(rows.Count / (double)PageSize));
-        var pageIndex = Math.Clamp(page, 1, totalPages) - 1;
-        var pageRows = rows.Skip(pageIndex * PageSize).Take(PageSize).ToList();
-        var itemCounts = await _estimateService.GetItemCountsAsync(pageRows.Select(r => r.Estimate.Id).ToList());
+        var itemCounts = await _estimateService.GetItemCountsAsync(estimates.Select(e => e.Id).ToList());
 
         var model = new AdminEstimateListsModel
         {
             SearchTerm = searchTerm,
-            PageIndex = pageIndex,
-            TotalPages = totalPages,
-            TotalCount = rows.Count
+            PageIndex = estimates.PageIndex,
+            TotalPages = Math.Max(1, estimates.TotalPages),
+            TotalCount = estimates.TotalCount
         };
 
-        foreach (var (e, owner, ownerType) in pageRows)
+        foreach (var e in estimates)
+        {
+            var isCustomer = e.CustomerId > 0;
             model.Estimates.Add(new AdminEstimateRowModel
             {
                 Id = e.Id,
                 Name = e.Name,
                 Description = e.Description,
-                OwnerDisplay = owner,
-                OwnerType = ownerType,
+                OwnerDisplay = isCustomer
+                    ? customers.TryGetValue(e.CustomerId, out var customer) ? FormatCustomer(customer) : $"Customer #{e.CustomerId}"
+                    : e.ContactName ?? e.ContactEmail ?? "Unknown Contact",
+                OwnerType = isCustomer ? "Customer" : "Contact",
                 ItemCount = itemCounts.TryGetValue(e.Id, out var count) ? count : 0,
                 CreatedOn = (await _dateTimeHelper.ConvertToUserTimeAsync(e.CreatedOnUtc, DateTimeKind.Utc)).ToString("M/d/yyyy")
             });
+        }
 
         return View(ListView, model);
     }
@@ -298,7 +275,7 @@ public class AdminEstimateController : BasePluginController
         }
         await _estimateService.UpdateEstimateListAsync(estimate);
 
-        await EstimateModelHelper.ApplyItemChangesAsync(_estimateService, estimate.Id, model.Items);
+        await EstimateModelHelper.ApplyItemChangesAsync(_estimateService, estimate.Id, model.Items, model.RemoveItemId);
 
         return RedirectToAction(nameof(Details), new { id = estimate.Id });
     }

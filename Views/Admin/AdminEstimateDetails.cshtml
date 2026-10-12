@@ -28,6 +28,8 @@
 <section class="content">
     <div class="container-fluid">
         <form asp-action="UpdateDetails" method="post">
+            @* Enter in any field triggers the form's first submit button; make that "save", not a row's delete button *@
+            <button type="submit" tabindex="-1" aria-hidden="true" style="position:absolute; left:-9999px; width:1px; height:1px;"></button>
             <input type="hidden" asp-for="EstimateListId" />
 
             <div class="row">
@@ -148,7 +150,7 @@
                         </select>
                         <input type="number" id="add-product-qty" value="1" min="1"
                                class="form-control mr-2 mb-2" style="width:70px;" />
-                        <button type="button" onclick="doAddProduct()" class="btn btn-primary mb-2">
+                        <button type="button" onclick="doAddProduct(this)" class="btn btn-primary mb-2">
                             <i class="fas fa-plus"></i> Add
                         </button>
                     </div>
@@ -170,7 +172,7 @@
                         <table class="table table-bordered table-hover mb-0">
                             <thead class="thead-light">
                                 <tr>
-                                    <th class="text-center" style="width:50px;">Remove</th>
+                                    <th class="text-center" style="width:80px;">Remove</th>
                                     <th style="width:90px;">SKU</th>
                                     <th style="width:80px;">Image</th>
                                     <th>Product</th>
@@ -185,8 +187,11 @@
                                     <input type="hidden" name="Items[@i].Id" value="@Model.Items[i].Id" />
                                     <input type="hidden" name="Items[@i].ProductId" value="@Model.Items[i].ProductId" />
                                     <tr>
-                                        <td class="text-center align-middle">
-                                            <input type="checkbox" name="Items[@i].Remove" value="true" />
+                                        <td class="text-center align-middle text-nowrap">
+                                            <input type="checkbox" name="Items[@i].Remove" value="true" title="Select to remove when you click Save Changes" />
+                                            <button type="submit" name="RemoveItemId" value="@Model.Items[i].Id" title="Delete this item"
+                                                    onclick="return confirm('Remove this item from the estimate?')"
+                                                    class="btn btn-link btn-sm text-danger p-0 ml-2"><i class="fas fa-trash"></i></button>
                                         </td>
                                         <td class="align-middle small">@Model.Items[i].Sku</td>
                                         <td class="align-middle">
@@ -287,7 +292,7 @@ function resetAttrPanel() {
     p.innerHTML = ''; p.style.display = 'none';
 }
 
-function doAddProduct() {
+function doAddProduct(button) {
     var pid = document.getElementById('add-product-select').value;
     var qty = parseInt(document.getElementById('add-product-qty').value, 10) || 1;
     var msg = document.getElementById('add-product-msg');
@@ -298,12 +303,15 @@ function doAddProduct() {
     params.append('estimateListId', ESTIMATE_ID);
     params.append('quantity', qty);
     EstimateBuilder.appendAttributes(document.getElementById('add-attr-panel'), params);
+    button.disabled = true;
     fetch(ADD_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token }, body: params.toString() })
         .then(r => r.json())
         .then(data => {
             showMsg(msg, data.message, data.success);
             if (data.success) setTimeout(() => location.reload(), 800);
-        });
+            else button.disabled = false;
+        })
+        .catch(() => { showMsg(msg, 'Something went wrong. Please try again.', false); button.disabled = false; });
 }
 
 function showMsg(el, text, ok) {

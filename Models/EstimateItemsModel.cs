@@ -31,5 +31,8 @@ public class EstimateItemsModel
     public IList<EstimateItemModel> Items { get; set; } = new List<EstimateItemModel>();
     public string SubTotalFormatted { get; set; } = string.Empty;
     public bool ShowPrices { get; set; } = true;
+
+    /// <summary>Set by a row's delete button; that line is removed along with any other posted changes.</summary>
+    public int RemoveItemId { get; set; }
     public IList<CategorySelectItem> Categories { get; set; } = new List<CategorySelectItem>();
 }

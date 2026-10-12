@@ -1,3 +1,4 @@
+using Nop.Core;
 using Nop.Plugin.Misc.EstimateBuilder.Domain;
 
 namespace Nop.Plugin.Misc.EstimateBuilder.Services;
@@ -5,7 +6,11 @@ namespace Nop.Plugin.Misc.EstimateBuilder.Services;
 public interface IEstimateService
 {
     Task<IList<EstimateList>> GetEstimateListsByCustomerIdAsync(int customerId);
-    Task<IList<EstimateList>> GetAllEstimateListsAsync();
+
+    /// <summary>
+    /// Newest first, filtered by estimate name, contact name/email or owner name/email.
+    /// </summary>
+    Task<IPagedList<EstimateList>> SearchEstimateListsAsync(string? searchTerm, int pageIndex, int pageSize);
     Task<EstimateList?> GetEstimateListByIdAsync(int id);
     Task InsertEstimateListAsync(EstimateList estimateList);
     Task UpdateEstimateListAsync(EstimateList estimateList);

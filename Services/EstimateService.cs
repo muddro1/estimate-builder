@@ -1,3 +1,5 @@
+using Nop.Core;
+using Nop.Core.Domain.Customers;
 using Nop.Data;
 using Nop.Plugin.Misc.EstimateBuilder.Domain;
 
@@ -7,13 +9,16 @@ public class EstimateService : IEstimateService
 {
     private readonly IRepository<EstimateList> _estimateListRepository;
     private readonly IRepository<EstimateListItem> _estimateListItemRepository;
+    private readonly IRepository<Customer> _customerRepository;
 
     public EstimateService(
         IRepository<EstimateList> estimateListRepository,
-        IRepository<EstimateListItem> estimateListItemRepository)
+        IRepository<EstimateListItem> estimateListItemRepository,
+        IRepository<Customer> customerRepository)
     {
         _estimateListRepository = estimateListRepository;
         _estimateListItemRepository = estimateListItemRepository;
+        _customerRepository = customerRepository;
     }
 
     public async Task<IList<EstimateList>> GetEstimateListsByCustomerIdAsync(int customerId)
@@ -22,10 +27,28 @@ public class EstimateService : IEstimateService
             q.Where(e => e.CustomerId == customerId).OrderByDescending(e => e.CreatedOnUtc));
     }
 
-    public async Task<IList<EstimateList>> GetAllEstimateListsAsync()
+    public async Task<IPagedList<EstimateList>> SearchEstimateListsAsync(string? searchTerm, int pageIndex, int pageSize)
     {
-        return await _estimateListRepository.GetAllAsync(q =>
-            q.OrderByDescending(e => e.CreatedOnUtc));
+        var term = searchTerm?.Trim();
+
+        // Search and paging run in the database; the owner's name/email come from a left join to Customer
+        var query =
+            from e in _estimateListRepository.Table
+            join c in _customerRepository.Table on e.CustomerId equals c.Id into owners
+            from c in owners.DefaultIfEmpty()
+            where string.IsNullOrEmpty(term)
+                  || e.Name.Contains(term)
+                  || (e.ContactName != null && e.ContactName.Contains(term))
+                  || (e.ContactEmail != null && e.ContactEmail.Contains(term))
+                  || (c != null && (
+                      (c.Email != null && c.Email.Contains(term))
+                      || (c.FirstName != null && c.FirstName.Contains(term))
+                      || (c.LastName != null && c.LastName.Contains(term))
+                      || ((c.FirstName ?? "") + " " + (c.LastName ?? "")).Contains(term)))
+            orderby e.CreatedOnUtc descending, e.Id descending
+            select e;
+
+        return await query.ToPagedListAsync(pageIndex, pageSize);
     }
 
     public async Task<EstimateList?> GetEstimateListByIdAsync(int id)
@@ -124,6 +147,21 @@ public class EstimateService : IEstimateService
             Quantity = quantity,
             AttributesXml = attributesXml
         });
+
+        // Two requests racing (e.g. a double-click) can both insert; fold any duplicates into the oldest line.
+        // AttributesXml is too long for a unique index, so this is enforced here instead of in the schema.
+        var duplicates = (await GetItemsByEstimateListIdAsync(estimateListId))
+            .Where(i => i.ProductId == productId &&
+                        string.Equals(i.AttributesXml ?? string.Empty, attributesXml ?? string.Empty, StringComparison.Ordinal))
+            .OrderBy(i => i.Id)
+            .ToList();
+        if (duplicates.Count > 1)
+        {
+            var keep = duplicates[0];
+            keep.Quantity = (int)Math.Min(duplicates.Sum(i => (long)i.Quantity), EstimateBuilderDefaults.MaxQuantity);
+            await _estimateListItemRepository.UpdateAsync(keep);
+            await _estimateListItemRepository.DeleteAsync(duplicates.Skip(1).ToList());
+        }
     }
 
     public async Task UpdateEstimateListItemAsync(EstimateListItem item)

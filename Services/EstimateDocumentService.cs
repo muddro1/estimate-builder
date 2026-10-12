@@ -5,6 +5,7 @@ using Nop.Core;
 using Nop.Core.Domain.Catalog;
 using Nop.Core.Domain.Customers;
 using Nop.Core.Domain.Orders;
+using Nop.Core.Domain.Tax;
 using Nop.Plugin.Misc.EstimateBuilder.Domain;
 using Nop.Services.Catalog;
 using Nop.Services.Customers;
@@ -94,6 +95,9 @@ public class EstimateDocumentService : IEstimateDocumentService
         var store = await _storeContext.GetCurrentStoreAsync();
         var currency = await _workContext.GetWorkingCurrencyAsync();
         var callForPrice = await _localizationService.GetResourceAsync("Products.CallForPrice");
+        // The owner's tax display preference, not the signed-in user's (which is what the 3-argument
+        // ITaxService.GetProductPriceAsync overload would use)
+        var includingTax = await _customerService.GetCustomerTaxDisplayTypeAsync(pricingCustomer) == TaxDisplayType.IncludingTax;
 
         var items = await _estimateService.GetItemsByEstimateListIdAsync(estimate.Id);
         var products = (await _productService.GetProductsByIdsAsync(items.Select(i => i.ProductId).Distinct().ToArray()))
@@ -121,7 +125,7 @@ public class EstimateDocumentService : IEstimateDocumentService
                 var (basePrice, _, _) = await _shoppingCartService.GetUnitPriceAsync(product, pricingCustomer, store,
                     ShoppingCartType.ShoppingCart, item.Quantity, item.AttributesXml ?? string.Empty,
                     decimal.Zero, null, null, true);
-                var (taxedPrice, _) = await _taxService.GetProductPriceAsync(product, basePrice, pricingCustomer);
+                var (taxedPrice, _) = await _taxService.GetProductPriceAsync(product, basePrice, includingTax, pricingCustomer);
                 unitPrice = await _priceCalculationService.RoundPriceAsync(
                     await _currencyService.ConvertFromPrimaryStoreCurrencyAsync(taxedPrice, currency), currency);
                 total = unitPrice * item.Quantity;
