@@ -6,6 +6,7 @@ using Nop.Plugin.Misc.EstimateBuilder.Domain;
 using Nop.Plugin.Misc.EstimateBuilder.Models;
 using Nop.Plugin.Misc.EstimateBuilder.Services;
 using Nop.Services.Catalog;
+using Nop.Services.Configuration;
 using Nop.Services.Customers;
 using Nop.Services.Helpers;
 using Nop.Services.Media;
@@ -28,6 +29,7 @@ public class AdminEstimateController : BasePluginController
     private const string ListView = EstimateBuilderDefaults.ViewsPath + "/Admin/AdminEstimateList.cshtml";
     private const string CreateView = EstimateBuilderDefaults.ViewsPath + "/Admin/AdminCreateEstimate.cshtml";
     private const string DetailsView = EstimateBuilderDefaults.ViewsPath + "/Admin/AdminEstimateDetails.cshtml";
+    private const string ConfigureView = EstimateBuilderDefaults.ViewsPath + "/Admin/Configure.cshtml";
 
     private readonly IEstimateService _estimateService;
     private readonly IEstimateDocumentService _documentService;
@@ -41,6 +43,8 @@ public class AdminEstimateController : BasePluginController
     private readonly ICustomerService _customerService;
     private readonly IDateTimeHelper _dateTimeHelper;
     private readonly INotificationService _notificationService;
+    private readonly ICategoryService _categoryService;
+    private readonly ISettingService _settingService;
 
     public AdminEstimateController(
         IEstimateService estimateService,
@@ -54,7 +58,9 @@ public class AdminEstimateController : BasePluginController
         INopUrlHelper nopUrlHelper,
         ICustomerService customerService,
         IDateTimeHelper dateTimeHelper,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        ICategoryService categoryService,
+        ISettingService settingService)
     {
         _estimateService = estimateService;
         _documentService = documentService;
@@ -68,6 +74,8 @@ public class AdminEstimateController : BasePluginController
         _customerService = customerService;
         _dateTimeHelper = dateTimeHelper;
         _notificationService = notificationService;
+        _categoryService = categoryService;
+        _settingService = settingService;
     }
 
     #region Access
@@ -80,6 +88,50 @@ public class AdminEstimateController : BasePluginController
     private async Task<bool> CanEditAsync() =>
         await CanViewAsync()
         && await _permissionService.AuthorizeAsync(StandardPermission.Orders.ORDERS_CREATE_EDIT_DELETE);
+
+    private async Task<bool> CanConfigureAsync() =>
+        await _workContext.GetCurrentVendorAsync() == null
+        && await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_PLUGINS);
+
+    #endregion
+
+    #region Settings
+
+    [HttpGet]
+    public async Task<IActionResult> Configure()
+    {
+        if (!await CanConfigureAsync())
+            return AccessDeniedView();
+
+        var settings = await _settingService.LoadSettingAsync<EstimateBuilderSettings>();
+        var allCategories = await _categoryService.GetAllCategoriesAsync(showHidden: true);
+
+        var model = new ConfigureModel { ExcludedCategoryIds = settings.ExcludedCategoryIds.ToList() };
+        foreach (var category in allCategories)
+            model.Categories.Add(new ConfigureCategoryItem
+            {
+                Id = category.Id,
+                Name = await _categoryService.GetFormattedBreadCrumbAsync(category, allCategories),
+                Published = category.Published
+            });
+        model.Categories = model.Categories.OrderBy(c => c.Name).ToList();
+
+        return View(ConfigureView, model);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Configure(ConfigureModel model)
+    {
+        if (!await CanConfigureAsync())
+            return AccessDeniedView();
+
+        var settings = await _settingService.LoadSettingAsync<EstimateBuilderSettings>();
+        settings.ExcludedCategoryIds = model.ExcludedCategoryIds.Where(id => id > 0).Distinct().OrderBy(id => id).ToList();
+        await _settingService.SaveSettingAsync(settings);
+
+        _notificationService.SuccessNotification("Estimate Builder settings saved.");
+        return RedirectToAction(nameof(Configure));
+    }
 
     #endregion
 
@@ -327,6 +379,8 @@ public class AdminEstimateController : BasePluginController
         var product = await _productService.GetProductByIdAsync(productId);
         if (product == null || product.Deleted)
             return Json(new { success = false, message = "Product not found." });
+        if (await _catalogService.IsProductExcludedAsync(product))
+            return Json(new { success = false, message = "This product's categories are excluded from the estimate builder." });
 
         var estimate = await _estimateService.GetEstimateListByIdAsync(estimateListId);
         if (estimate == null)
@@ -359,7 +413,7 @@ public class AdminEstimateController : BasePluginController
             return Json(new { hasAttributes = false });
 
         var product = await _productService.GetProductByIdAsync(productId);
-        if (product == null || product.Deleted)
+        if (product == null || product.Deleted || await _catalogService.IsProductExcludedAsync(product))
             return Json(new { hasAttributes = false });
 
         return Json(await _catalogService.GetAttributeOptionsAsync(product, includePriceAdjustments: true));

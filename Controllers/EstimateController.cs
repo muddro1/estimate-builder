@@ -354,7 +354,8 @@ public class EstimateController : BasePluginController
     {
         return product != null && !product.Deleted && product.Published
             && await _aclService.AuthorizeAsync(product)
-            && await _storeMappingService.AuthorizeAsync(product);
+            && await _storeMappingService.AuthorizeAsync(product)
+            && !await _catalogService.IsProductExcludedAsync(product);
     }
 
     private async Task<EstimateDocument> PrepareDocumentAsync(EstimateList estimate)

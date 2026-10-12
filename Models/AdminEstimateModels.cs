@@ -82,3 +82,16 @@ public class AdminEstimateDetailsModel : EstimateItemsModel
     // For assigning a customer to a contact estimate
     public string AssignCustomerSearch { get; set; } = string.Empty;
 }
+
+public class ConfigureModel
+{
+    public IList<int> ExcludedCategoryIds { get; set; } = new List<int>();
+    public IList<ConfigureCategoryItem> Categories { get; set; } = new List<ConfigureCategoryItem>();
+}
+
+public class ConfigureCategoryItem
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public bool Published { get; set; }
+}

@@ -10,6 +10,12 @@ namespace Nop.Plugin.Misc.EstimateBuilder.Services;
 /// </summary>
 public interface IEstimateCatalogService
 {
+    /// <summary>Excluded categories from the plugin settings, expanded with all their subcategories.</summary>
+    Task<ISet<int>> GetExcludedCategoryIdsAsync();
+
+    /// <summary>True when every category the product belongs to is excluded (uncategorized products never are).</summary>
+    Task<bool> IsProductExcludedAsync(Product product);
+
     Task<IList<CategorySelectItem>> GetCategoryOptionsAsync(int storeId);
 
     /// <summary>

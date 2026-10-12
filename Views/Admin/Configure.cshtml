@@ -1,0 +1,93 @@
+@model Nop.Plugin.Misc.EstimateBuilder.Models.ConfigureModel
+@{
+    Layout = "_AdminLayout";
+    ViewBag.Title = "Estimate Builder — Settings";
+    var excluded = Model.ExcludedCategoryIds.ToHashSet();
+}
+
+<form asp-action="Configure" method="post">
+    <div class="content-header clearfix">
+        <h1 class="float-left">
+            Estimate Builder
+            <small>Settings</small>
+        </h1>
+        <div class="float-right">
+            <a asp-action="Index" class="btn btn-default">
+                <i class="fas fa-arrow-left"></i> All Estimates
+            </a>
+            <button type="submit" class="btn btn-primary ml-1">
+                <i class="far fa-save"></i> Save
+            </button>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            <div class="card card-default">
+                <div class="card-header">
+                    <h3 class="card-title">Excluded categories</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Checked categories, and all of their subcategories, are hidden from the estimate builder's
+                        category list on the storefront and in admin.
+                        A product is excluded when <strong>every</strong> category it belongs to is excluded: it disappears
+                        from the add-product search, loses the "Add To Estimate" box on its product page, and can't be added.
+                        Products that are also in a category you didn't exclude, and products with no category, stay available.
+                        Items already saved on an estimate aren't removed.
+                    </p>
+
+                    @if (!Model.Categories.Any())
+                    {
+                        <p class="text-muted">There are no categories yet.</p>
+                    }
+                    else
+                    {
+                        <div class="form-inline mb-2">
+                            <input type="search" id="category-filter" class="form-control form-control-sm mr-2"
+                                   placeholder="Filter categories..." autocomplete="off" style="min-width:260px;" />
+                            <span class="small text-muted"><span id="excluded-count">@excluded.Count</span> selected</span>
+                        </div>
+
+                        <div id="category-list" class="border rounded p-2" style="max-height:480px; overflow-y:auto;">
+                            @foreach (var category in Model.Categories)
+                            {
+                                <div class="custom-control custom-checkbox" data-name="@category.Name.ToLowerInvariant()">
+                                    <input type="checkbox" class="custom-control-input" id="cat-@category.Id"
+                                           name="ExcludedCategoryIds" value="@category.Id" @(excluded.Contains(category.Id) ? "checked" : "") />
+                                    <label class="custom-control-label" for="cat-@category.Id">
+                                        @category.Name
+                                        @if (!category.Published)
+                                        {
+                                            <span class="badge badge-secondary ml-1">Unpublished</span>
+                                        }
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+</form>
+
+<script>
+(function () {
+    var filter = document.getElementById('category-filter');
+    var list = document.getElementById('category-list');
+    if (!filter || !list) return;
+
+    filter.addEventListener('input', function () {
+        var q = filter.value.trim().toLowerCase();
+        list.querySelectorAll('[data-name]').forEach(function (row) {
+            row.style.display = !q || row.getAttribute('data-name').indexOf(q) >= 0 ? '' : 'none';
+        });
+    });
+
+    list.addEventListener('change', function () {
+        document.getElementById('excluded-count').textContent =
+            list.querySelectorAll('input[type=checkbox]:checked').length;
+    });
+})();
+</script>

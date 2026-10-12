@@ -33,9 +33,10 @@ public class AdminMenuConsumer : BaseAdminMenuCreatedEventConsumer
         await _workContext.GetCurrentVendorAsync() == null
         && await _permissionService.AuthorizeAsync(StandardPermission.Orders.ORDERS_VIEW);
 
-    protected override Task<AdminMenuItem> GetAdminMenuItemAsync(IPlugin plugin)
+    protected override async Task<AdminMenuItem> GetAdminMenuItemAsync(IPlugin plugin)
     {
         var baseUrl = _webHelper.GetStoreLocation();
+        var canConfigure = await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_PLUGINS);
 
         var item = new AdminMenuItem
         {
@@ -60,10 +61,18 @@ public class AdminMenuConsumer : BaseAdminMenuCreatedEventConsumer
                     IconClass = "far fa-circle",
                     Url = baseUrl + "Admin/AdminEstimate/Create",
                     Visible = true
+                },
+                new AdminMenuItem
+                {
+                    SystemName = "EstimateBuilder.Settings",
+                    Title = "Settings",
+                    IconClass = "far fa-circle",
+                    Url = baseUrl + "Admin/AdminEstimate/Configure",
+                    Visible = canConfigure
                 }
             }
         };
 
-        return Task.FromResult(item);
+        return item;
     }
 }
