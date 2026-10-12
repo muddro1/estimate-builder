@@ -344,12 +344,12 @@ public class AdminEstimateController : BasePluginController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetProductsByCategory(int categoryId)
+    public async Task<IActionResult> GetProductsByCategory(int categoryId, string? q = null)
     {
         if (!await CanViewAsync())
             return Json(new List<object>());
 
-        return Json(await _catalogService.GetProductOptionsAsync(categoryId, storeId: 0));
+        return Json(await _catalogService.GetProductOptionsAsync(categoryId, q, storeId: 0));
     }
 
     [HttpGet]

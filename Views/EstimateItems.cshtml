@@ -45,9 +45,11 @@
             <div style="background:#f7f9fc; border:1px solid #dde3ed; border-radius:4px; padding:14px 16px; margin-bottom:16px;">
                 <h4 style="margin:0 0 10px; font-size:14px; font-weight:bold; color:#333;">Add Product</h4>
                 <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                    <select id="add-category-select" onchange="loadProductsForEstimate()"
+                    <input type="search" id="add-product-search" placeholder="Search name or SKU..." autocomplete="off"
+                           style="padding:6px 10px; border:1px solid #ccc; min-width:200px; color:#333; font-size:14px; background:#fff;" />
+                    <select id="add-category-select"
                             style="padding:6px 10px; border:1px solid #ccc; min-width:220px; color:#333; font-size:14px; background:#fff;">
-                        <option value="">-- Select Category --</option>
+                        <option value="">-- All Categories --</option>
                         @foreach (var cat in Model.Categories)
                         {
                             <option value="@cat.Id">@cat.Name</option>
@@ -196,30 +198,17 @@
                     document.getElementById('estimate-deletelist-form').submit();
             }
 
-            function loadProductsForEstimate() {
-                var catId = document.getElementById('add-category-select').value;
-                var prodSel = document.getElementById('add-product-select');
-                prodSel.innerHTML = '<option value="">-- Loading... --</option>';
-                prodSel.disabled = true;
-                document.getElementById('add-attr-panel').style.display = 'none';
-                document.getElementById('add-attr-panel').innerHTML = '';
-                if (!catId) {
-                    prodSel.innerHTML = '<option value="">-- Select Product --</option>';
-                    return;
+            EstimateBuilder.productPicker({
+                url: '@Url.Action("GetProductsByCategory", "Estimate")',
+                categoryId: 'add-category-select',
+                searchId: 'add-product-search',
+                productId: 'add-product-select',
+                onReset: function () {
+                    var panel = document.getElementById('add-attr-panel');
+                    panel.style.display = 'none';
+                    panel.innerHTML = '';
                 }
-                fetch('@Url.Action("GetProductsByCategory", "Estimate")?categoryId=' + encodeURIComponent(catId))
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        prodSel.innerHTML = '<option value="">-- Select Product --</option>';
-                        data.forEach(function(p) {
-                            var opt = document.createElement('option');
-                            opt.value = p.id;
-                            opt.textContent = p.name;
-                            prodSel.appendChild(opt);
-                        });
-                        prodSel.disabled = false;
-                    });
-            }
+            });
 
             function loadAttributesForProduct() {
                 var productId = document.getElementById('add-product-select').value;

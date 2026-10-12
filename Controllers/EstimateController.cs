@@ -302,10 +302,10 @@ public class EstimateController : BasePluginController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetProductsByCategory(int categoryId)
+    public async Task<IActionResult> GetProductsByCategory(int categoryId, string? q = null)
     {
         var store = await _storeContext.GetCurrentStoreAsync();
-        return Json(await _catalogService.GetProductOptionsAsync(categoryId, store.Id));
+        return Json(await _catalogService.GetProductOptionsAsync(categoryId, q, store.Id));
     }
 
     [HttpGet]

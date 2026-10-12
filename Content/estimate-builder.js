@@ -97,5 +97,62 @@ window.EstimateBuilder = (function () {
         });
     }
 
-    return { esc: esc, renderAttributes: renderAttributes, appendAttributes: appendAttributes };
+    // Fills the product <select> from the category and/or search box. Typing is debounced, and a slow
+    // older response can't overwrite a newer one.
+    function productPicker(options) {
+        var categorySelect = document.getElementById(options.categoryId);
+        var searchInput = document.getElementById(options.searchId);
+        var productSelect = document.getElementById(options.productId);
+        var timer = null, requestNo = 0;
+
+        function setPlaceholder(text) {
+            productSelect.innerHTML = '';
+            var opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = text;
+            productSelect.appendChild(opt);
+        }
+
+        function load() {
+            var catId = categorySelect.value;
+            var q = searchInput.value.trim();
+            if (options.onReset) options.onReset();
+
+            if (!catId && q.length < 2) {
+                setPlaceholder('-- Choose a category or search --');
+                productSelect.disabled = true;
+                return;
+            }
+
+            var current = ++requestNo;
+            setPlaceholder('-- Loading... --');
+            productSelect.disabled = true;
+
+            fetch(options.url + '?categoryId=' + encodeURIComponent(catId || 0) + '&q=' + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (current !== requestNo) return;
+                    setPlaceholder(data.length ? '-- Select Product (' + data.length + ') --' : '-- No products found --');
+                    data.forEach(function (p) {
+                        var opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.name;
+                        productSelect.appendChild(opt);
+                    });
+                    productSelect.disabled = data.length === 0;
+                });
+        }
+
+        categorySelect.addEventListener('change', load);
+        searchInput.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(load, 300);
+        });
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timer); load(); }
+        });
+        setPlaceholder('-- Choose a category or search --');
+    }
+
+    return { esc: esc, renderAttributes: renderAttributes, appendAttributes: appendAttributes, productPicker: productPicker };
 })();

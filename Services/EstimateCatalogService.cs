@@ -47,20 +47,37 @@ public class EstimateCatalogService : IEstimateCatalogService
         return items.OrderBy(c => c.Name).ToList();
     }
 
-    public async Task<IList<object>> GetProductOptionsAsync(int categoryId, int storeId)
+    public async Task<IList<object>> GetProductOptionsAsync(int categoryId, string? keywords, int storeId)
     {
-        // A parent category lists the products of all its subcategories too (at any depth)
-        var categoryIds = new List<int> { categoryId };
-        categoryIds.AddRange(await _categoryService.GetChildCategoryIdsAsync(categoryId, storeId));
+        keywords = keywords?.Trim();
+        var hasKeywords = !string.IsNullOrEmpty(keywords) && keywords.Length >= 2;
+        if (categoryId <= 0 && !hasKeywords)
+            return new List<object>();
 
+        // A parent category lists the products of all its subcategories too (at any depth)
+        List<int>? categoryIds = null;
+        if (categoryId > 0)
+        {
+            categoryIds = new List<int> { categoryId };
+            categoryIds.AddRange(await _categoryService.GetChildCategoryIdsAsync(categoryId, storeId));
+            categoryIds = categoryIds.Distinct().ToList();
+        }
+
+        // Keyword search reaches every product, including ones not assigned to any category
         var products = await _productService.SearchProductsAsync(
-            categoryIds: categoryIds.Distinct().ToList(),
+            categoryIds: categoryIds,
             storeId: storeId,
             visibleIndividuallyOnly: true,
-            pageSize: 1000,
+            keywords: hasKeywords ? keywords : null,
+            searchSku: true,
+            pageSize: hasKeywords ? 100 : 1000,
             orderBy: ProductSortingEnum.NameAsc);
 
-        return products.Select(p => (object)new { id = p.Id, name = p.Name }).ToList();
+        return products.Select(p => (object)new
+        {
+            id = p.Id,
+            name = string.IsNullOrEmpty(p.Sku) ? p.Name : $"{p.Name} ({p.Sku})"
+        }).ToList();
     }
 
     public async Task<object> GetAttributeOptionsAsync(Product product, bool includePriceAdjustments)

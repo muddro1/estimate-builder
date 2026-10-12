@@ -11,7 +11,13 @@ namespace Nop.Plugin.Misc.EstimateBuilder.Services;
 public interface IEstimateCatalogService
 {
     Task<IList<CategorySelectItem>> GetCategoryOptionsAsync(int storeId);
-    Task<IList<object>> GetProductOptionsAsync(int categoryId, int storeId);
+
+    /// <summary>
+    /// Products for the "add product" picker: by category (including subcategories), by name/SKU keywords, or both.
+    /// Returns nothing when neither is given.
+    /// </summary>
+    Task<IList<object>> GetProductOptionsAsync(int categoryId, string? keywords, int storeId);
+
     Task<object> GetAttributeOptionsAsync(Product product, bool includePriceAdjustments);
 
     /// <summary>
