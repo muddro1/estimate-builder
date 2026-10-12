@@ -67,6 +67,7 @@
 
   <ItemGroup>
     <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="logo.png" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Views\**\*.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Content\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
