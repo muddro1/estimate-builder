@@ -49,11 +49,15 @@ public class EstimateCatalogService : IEstimateCatalogService
 
     public async Task<IList<object>> GetProductOptionsAsync(int categoryId, int storeId)
     {
+        // A parent category lists the products of all its subcategories too (at any depth)
+        var categoryIds = new List<int> { categoryId };
+        categoryIds.AddRange(await _categoryService.GetChildCategoryIdsAsync(categoryId, storeId));
+
         var products = await _productService.SearchProductsAsync(
-            categoryIds: new List<int> { categoryId },
+            categoryIds: categoryIds.Distinct().ToList(),
             storeId: storeId,
             visibleIndividuallyOnly: true,
-            pageSize: 500,
+            pageSize: 1000,
             orderBy: ProductSortingEnum.NameAsc);
 
         return products.Select(p => (object)new { id = p.Id, name = p.Name }).ToList();
