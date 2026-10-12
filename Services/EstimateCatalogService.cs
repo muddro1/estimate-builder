@@ -2,10 +2,13 @@ using Microsoft.AspNetCore.Http;
 using Nop.Core.Domain.Catalog;
 using Nop.Core.Domain.Customers;
 using Nop.Core.Domain.Orders;
+using Nop.Data;
 using Nop.Plugin.Misc.EstimateBuilder.Models;
 using Nop.Services.Catalog;
 using Nop.Services.Configuration;
 using Nop.Services.Orders;
+using Nop.Services.Security;
+using Nop.Services.Stores;
 
 namespace Nop.Plugin.Misc.EstimateBuilder.Services;
 
@@ -18,6 +21,10 @@ public class EstimateCatalogService : IEstimateCatalogService
     private readonly IPriceFormatter _priceFormatter;
     private readonly IShoppingCartService _shoppingCartService;
     private readonly ISettingService _settingService;
+    private readonly IAclService _aclService;
+    private readonly IStoreMappingService _storeMappingService;
+    private readonly IRepository<Product> _productRepository;
+    private readonly IRepository<ProductAttributeCombination> _combinationRepository;
 
     // Excluded categories plus all their descendants; computed once per request (the service is scoped)
     private HashSet<int>? _excludedCategoryIds;
@@ -29,7 +36,11 @@ public class EstimateCatalogService : IEstimateCatalogService
         IProductAttributeParser productAttributeParser,
         IPriceFormatter priceFormatter,
         IShoppingCartService shoppingCartService,
-        ISettingService settingService)
+        ISettingService settingService,
+        IAclService aclService,
+        IStoreMappingService storeMappingService,
+        IRepository<Product> productRepository,
+        IRepository<ProductAttributeCombination> combinationRepository)
     {
         _categoryService = categoryService;
         _productService = productService;
@@ -38,6 +49,10 @@ public class EstimateCatalogService : IEstimateCatalogService
         _priceFormatter = priceFormatter;
         _shoppingCartService = shoppingCartService;
         _settingService = settingService;
+        _aclService = aclService;
+        _storeMappingService = storeMappingService;
+        _productRepository = productRepository;
+        _combinationRepository = combinationRepository;
     }
 
     public async Task<ISet<int>> GetExcludedCategoryIdsAsync()
@@ -113,23 +128,84 @@ public class EstimateCatalogService : IEstimateCatalogService
             categoryIds = categoryIds.Distinct().Where(id => !excludedCategories.Contains(id)).ToList();
         }
 
+        var maxResults = hasKeywords ? 100 : 1000;
+
         // Keyword search reaches every product, including ones not assigned to any category
-        var products = await _productService.SearchProductsAsync(
+        IEnumerable<Product> products = await _productService.SearchProductsAsync(
             categoryIds: categoryIds,
             storeId: storeId,
             visibleIndividuallyOnly: true,
             keywords: hasKeywords ? keywords : null,
             searchSku: true,
-            pageSize: hasKeywords ? 100 : 1000,
+            pageSize: maxResults,
             orderBy: ProductSortingEnum.NameAsc);
 
-        var excludedProducts = await GetExcludedProductIdsAsync(products.Select(p => p.Id).ToArray());
+        // nopCommerce's standard search only matches a SKU when the whole SKU is typed; add partial matches
+        if (hasKeywords)
+            products = products
+                .Concat(await SearchByPartialSkuAsync(keywords!, categoryIds, storeId, maxResults))
+                .DistinctBy(p => p.Id)
+                .OrderBy(p => p.Name)
+                .Take(maxResults);
 
-        return products.Where(p => !excludedProducts.Contains(p.Id)).Select(p => (object)new
+        var productList = products.ToList();
+        var excludedProducts = await GetExcludedProductIdsAsync(productList.Select(p => p.Id).ToArray());
+
+        return productList.Where(p => !excludedProducts.Contains(p.Id)).Select(p => (object)new
         {
             id = p.Id,
             name = string.IsNullOrEmpty(p.Sku) ? p.Name : $"{p.Name} ({p.Sku})"
         }).ToList();
+    }
+
+    /// <summary>
+    /// Products whose SKU, manufacturer part number or attribute-combination SKU contains the keywords,
+    /// filtered the way SearchProductsAsync filters: published and visible individually, plus ACL and
+    /// store mapping on the storefront (storeId > 0), and restricted to <paramref name="categoryIds"/> when given.
+    /// </summary>
+    private async Task<IList<Product>> SearchByPartialSkuAsync(string keywords, IList<int>? categoryIds, int storeId, int maxResults)
+    {
+        var productIds = await _productRepository.Table
+            .Where(p => !p.Deleted && p.Published && p.VisibleIndividually &&
+                        ((p.Sku != null && p.Sku.Contains(keywords)) ||
+                         (p.ManufacturerPartNumber != null && p.ManufacturerPartNumber.Contains(keywords))))
+            .Select(p => p.Id)
+            .Take(maxResults)
+            .ToListAsync();
+
+        var combinationProductIds = await _combinationRepository.Table
+            .Where(c => c.Sku != null && c.Sku.Contains(keywords))
+            .Select(c => c.ProductId)
+            .Distinct()
+            .Take(maxResults)
+            .ToListAsync();
+
+        var ids = productIds.Concat(combinationProductIds).Distinct().ToArray();
+        if (ids.Length == 0)
+            return new List<Product>();
+
+        var candidates = (await _productService.GetProductsByIdsAsync(ids))
+            .Where(p => !p.Deleted && p.Published && p.VisibleIndividually)
+            .ToList();
+
+        if (categoryIds != null)
+        {
+            var allowed = categoryIds.ToHashSet();
+            var productCategories = await _categoryService.GetProductCategoryIdsAsync(candidates.Select(p => p.Id).ToArray());
+            candidates = candidates
+                .Where(p => productCategories.TryGetValue(p.Id, out var cats) && cats.Any(allowed.Contains))
+                .ToList();
+        }
+
+        if (storeId <= 0)
+            return candidates;
+
+        var visible = new List<Product>();
+        foreach (var product in candidates)
+            if (await _aclService.AuthorizeAsync(product) && await _storeMappingService.AuthorizeAsync(product, storeId))
+                visible.Add(product);
+
+        return visible;
     }
 
     public async Task<object> GetAttributeOptionsAsync(Product product, bool includePriceAdjustments)
