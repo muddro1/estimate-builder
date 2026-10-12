@@ -8,7 +8,12 @@
 }
 
 <div class="page account-page estimate-create-page">
-    <div class="page-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #3a7bbf; padding-bottom:8px; margin-bottom:16px;">
+    <style>
+        /* The theme's .page-title:after clearfix would become a third flex item and push the buttons to the middle */
+        .estimate-page-title { display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; border-bottom:2px solid #3a7bbf; padding-bottom:8px; margin-bottom:16px; text-align:left; }
+        .estimate-page-title::after { display:none; }
+    </style>
+    <div class="page-title estimate-page-title">
         <h1 style="margin:0;">@(isEdit ? "Edit Estimate" : "New Estimate")</h1>
         <a href="@Url.Action("Index","Estimate")" class="button-2" style="background:#888; color:#fff; padding:8px 16px; text-decoration:none; border-radius:3px;">
             &#171;&#171; Back To List
